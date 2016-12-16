@@ -24,6 +24,7 @@ import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.ThreadFactory;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.function.Consumer;
 import java.util.function.Function;
 
 import com.google.common.util.concurrent.ThreadFactoryBuilder;
@@ -37,11 +38,14 @@ public class Producers2Consumers<P, C> implements AutoCloseable {
 
 	private int inputQueueSize = Runtime.getRuntime().availableProcessors() * 10;
 	private int outputQueueSize = Runtime.getRuntime().availableProcessors() * 10;
-	private int concurrencyLevel = Runtime.getRuntime().availableProcessors();
+	private int inputProcessors = Runtime.getRuntime().availableProcessors();
+	private int outputConsumers = 1;
 	private BlockingQueue<P> inputQueue = null;
-	private Function<P, C> functionCode;
+	private ExecutorService inputExecutor;
+	private Function<P, C> processorFunction;
 	private BlockingQueue<C> outputQueue = null;
-	private ExecutorService producersService;
+	private ExecutorService outputExecutor;
+	private Consumer<C> consumerFunction;
 	private int threadPriority = Thread.NORM_PRIORITY;
 	private String threadNameFormat = "pool-thread-%d";
 	private UncaughtExceptionHandler uncaughtExceptionHandler = (t, e) -> {
@@ -59,30 +63,52 @@ public class Producers2Consumers<P, C> implements AutoCloseable {
 	/**
 	 * Only accessed through the builder pattern.
 	 */
-	private Producers2Consumers(Function<P, C> functionCode) {
-		this.functionCode = functionCode;
+	private Producers2Consumers(Function<P, C> inputProcessor, Consumer<C> outputConsumer) {
+		this.processorFunction = inputProcessor;
+		this.consumerFunction = outputConsumer;
 	}
 
-	public static <P, C> Producers2Consumers<P, C> builder(Function<P, C> functionCode) {
-		return new Producers2Consumers<P, C>(Objects.requireNonNull(functionCode, "Function code must not be null"));
+	public static <P, C> Producers2Consumers<P, C> builder(Function<P, C> inputProcessor, Consumer<C> outputConsumer) {
+		return new Producers2Consumers<P, C>(
+				Objects.requireNonNull(inputProcessor, "Processor function code must not be null"),
+				Objects.requireNonNull(outputConsumer, "Consumer function code must not be null"));
 	}
 
 	/**
 	 * The concurrency level to use when constructing threads for processing
 	 * inputs.
 	 * 
-	 * @param concurrencyLevel
+	 * @param inputProcessors
 	 *            The number of threads to use for processing inputs.
 	 * @return Fluent return of this object.
 	 */
-	public Producers2Consumers<P, C> concurrency(int concurrencyLevel) {
+	public Producers2Consumers<P, C> inputProcessors(int inputProcessors) {
 		checkNotSetup();
 
-		if (concurrencyLevel < 1) {
-			throw new IllegalArgumentException("Concurrency level must be positive.");
+		if (inputProcessors < 1) {
+			throw new IllegalArgumentException("Input processor concurrency level must be positive.");
 		}
 
-		this.concurrencyLevel = concurrencyLevel;
+		this.inputProcessors = inputProcessors;
+		return this;
+	}
+
+	/**
+	 * The concurrency level to use when constructing threads for consuming
+	 * outputs.
+	 * 
+	 * @param outputConsumers
+	 *            The number of threads to use for consuming outputs.
+	 * @return Fluent return of this object.
+	 */
+	public Producers2Consumers<P, C> outputConsumers(int outputConsumers) {
+		checkNotSetup();
+
+		if (outputConsumers < 1) {
+			throw new IllegalArgumentException("Output consumer concurrency level must be positive.");
+		}
+
+		this.outputConsumers = outputConsumers;
 		return this;
 	}
 
@@ -164,11 +190,10 @@ public class Producers2Consumers<P, C> implements AutoCloseable {
 			ThreadFactory nextThreadFactory = new ThreadFactoryBuilder()
 					.setUncaughtExceptionHandler(uncaughtExceptionHandler).setNameFormat(threadNameFormat)
 					.setPriority(threadPriority).build();
-			if (concurrencyLevel > 0) {
-				this.producersService = Executors.newFixedThreadPool(concurrencyLevel, nextThreadFactory);
-			} else {
-				this.producersService = Executors.newCachedThreadPool(nextThreadFactory);
-			}
+			this.inputExecutor = Executors.newFixedThreadPool(inputProcessors, nextThreadFactory);
+			addInputProcessors();
+			this.outputExecutor = Executors.newFixedThreadPool(outputConsumers, nextThreadFactory);
+			addOutputConsumers();
 		} else {
 			checkNotSetup();
 		}
@@ -181,8 +206,18 @@ public class Producers2Consumers<P, C> implements AutoCloseable {
 			throw new IllegalStateException("Already setup");
 		}
 	}
-	
-	public void add(P toConsume) {
+
+	/**
+	 * Call this from the supplier threads to add items to the processing queue.
+	 * <br>
+	 * This method will block if the input queue is a fixed size queue and the
+	 * queue is full, otherwise it will return immediately after adding the item
+	 * to the queue.
+	 * 
+	 * @param toProcess
+	 *            The item to be processed.
+	 */
+	public void addInput(P toProcess) {
 		try {
 			if (Thread.interrupted()) {
 				this.close();
@@ -190,9 +225,9 @@ public class Producers2Consumers<P, C> implements AutoCloseable {
 			}
 
 			if (this.inputQueueSize > 0) {
-				this.inputQueue.put(toConsume);
+				this.inputQueue.put(toProcess);
 			} else {
-				this.inputQueue.add(toConsume);
+				this.inputQueue.add(toProcess);
 			}
 		} catch (InterruptedException e) {
 			this.close();
@@ -200,9 +235,71 @@ public class Producers2Consumers<P, C> implements AutoCloseable {
 		}
 	}
 
+	private void addOutputConsumers() {
+		for (int i = 0; i < outputConsumers; i++) {
+			this.outputExecutor.submit(() -> {
+				while (true) {
+					try {
+						if (Thread.interrupted()) {
+							this.close();
+							throwShutdownException();
+						}
+
+						C toConsume = this.outputQueue.take();
+
+						if (toConsume == null || toConsume == outputSentinel) {
+							return;
+						}
+						
+						consumerFunction.accept(toConsume);
+					} catch (InterruptedException e) {
+						this.close();
+						throwShutdownException(e);
+					}
+				}
+			});
+		}
+	}
+
+	private void addInputProcessors() {
+		for (int i = 0; i < inputProcessors; i++) {
+			this.inputExecutor.submit(() -> {
+				while (true) {
+					try {
+						if (Thread.currentThread().isInterrupted()) {
+							break;
+						}
+						P take = this.inputQueue.take();
+						if (take == null || take == inputSentinel) {
+							break;
+						}
+
+						C toConsume = processorFunction.apply(take);
+
+						// Null return from functionCode indicates that we don't
+						// consume the result
+						if (toConsume != null) {
+							if (this.outputQueueSize > 0) {
+								this.outputQueue.put(toConsume);
+							} else {
+								this.outputQueue.add(toConsume);
+							}
+						}
+					} catch (InterruptedException e) {
+						Thread.currentThread().interrupt();
+					}
+				}
+			});
+		}
+	}
+
 	public void finish() {
 		try {
-			add(inputSentinel);
+			// Add one copy of the sentinel for each processor
+			for (int i = 0; i < inputProcessors; i++) {
+				addInput(inputSentinel);
+			}
+			// Allow other threads to be scheduled by sleeping momentarily
 			Thread.sleep(1);
 		} catch (InterruptedException e) {
 			Thread.currentThread().interrupt();
@@ -212,27 +309,29 @@ public class Producers2Consumers<P, C> implements AutoCloseable {
 		}
 	}
 
+	@Override
+	public void close() {
+		try {
+			for (int i = 0; i < outputConsumers; i++) {
+				this.outputQueue.add(outputSentinel);
+			}
+			this.inputExecutor.shutdown();
+			this.inputExecutor.awaitTermination(waitTime, waitUnit);
+		} catch (InterruptedException e) {
+			Thread.currentThread().interrupt();
+			throwShutdownException(e);
+		} finally {
+			if (!this.inputExecutor.isTerminated()) {
+				this.inputExecutor.shutdownNow();
+			}
+		}
+	}
+
 	private void throwShutdownException() {
 		throw new RuntimeException("Execution was interrupted");
 	}
 
 	private void throwShutdownException(Throwable e) {
 		throw new RuntimeException("Execution was interrupted", e);
-	}
-
-	@Override
-	public void close() {
-		try {
-			this.outputQueue.add(outputSentinel);
-			this.producersService.shutdown();
-			this.producersService.awaitTermination(waitTime, waitUnit);
-		} catch (InterruptedException e) {
-			Thread.currentThread().interrupt();
-			throwShutdownException(e);
-		} finally {
-			if (!this.producersService.isTerminated()) {
-				this.producersService.shutdownNow();
-			}
-		}
 	}
 }

@@ -5,6 +5,8 @@ package com.github.ansell.concurrent.jparallel;
 
 import static org.junit.Assert.*;
 
+import java.util.Queue;
+import java.util.concurrent.LinkedBlockingQueue;
 import java.util.function.Consumer;
 import java.util.function.Function;
 
@@ -44,9 +46,10 @@ public class Producers2ConsumersTest {
 	@Test
 	public final void testBuilder() {
 		Function<Integer, String> processFunction = i -> Integer.toHexString(i);
-		Consumer<String> outputFunction = System.out::println;
+		Queue<String> results = new LinkedBlockingQueue<>();
+		Consumer<String> outputFunction = results::add;
 		Producers2Consumers<Integer, String> setup = Producers2Consumers.builder(processFunction, outputFunction)
-				.inputProcessors(10).outputBuffer(100)
+				.inputProcessors(3).outputBuffer(1000)
 				.uncaughtExceptionHandler((t, e) -> logger.error("Uncaught error in Producers2ConsumersTest", e))
 				.setup();
 		try {
@@ -56,6 +59,8 @@ public class Producers2ConsumersTest {
 		} finally {
 			setup.close();
 		}
+		
+		assertEquals(10000, results.size());
 	}
 
 }

@@ -15,6 +15,7 @@
 package com.github.ansell.concurrent.jparallel;
 
 import java.lang.Thread.UncaughtExceptionHandler;
+import java.util.List;
 import java.util.Objects;
 import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.BlockingQueue;
@@ -27,6 +28,9 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Consumer;
 import java.util.function.Function;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import com.google.common.util.concurrent.ThreadFactoryBuilder;
 
 /**
@@ -36,9 +40,11 @@ import com.google.common.util.concurrent.ThreadFactoryBuilder;
  */
 public class Producers2Consumers<P, C> implements AutoCloseable {
 
+	private final Logger logger = LoggerFactory.getLogger(this.getClass());
+
 	private int inputQueueSize = Runtime.getRuntime().availableProcessors() * 10;
 	private int outputQueueSize = Runtime.getRuntime().availableProcessors() * 10;
-	private int inputProcessors = Runtime.getRuntime().availableProcessors();
+	private int inputProcessors = Math.min(1, Runtime.getRuntime().availableProcessors() - 1);
 	private int outputConsumers = 1;
 	private BlockingQueue<P> inputQueue = null;
 	private ExecutorService inputExecutor;
@@ -49,10 +55,12 @@ public class Producers2Consumers<P, C> implements AutoCloseable {
 	private int threadPriority = Thread.NORM_PRIORITY;
 	private String threadNameFormat = "pool-thread-%d";
 	private UncaughtExceptionHandler uncaughtExceptionHandler = (t, e) -> {
+		logger.error("Uncaught exception occurred in thread: " + t.getName(), e);
 	};
 	private long waitTime = 1;
 	private TimeUnit waitUnit = TimeUnit.MINUTES;
 
+	private final AtomicBoolean closed = new AtomicBoolean(false);
 	private final AtomicBoolean setup = new AtomicBoolean(false);
 
 	@SuppressWarnings("unchecked")
@@ -241,19 +249,18 @@ public class Producers2Consumers<P, C> implements AutoCloseable {
 				while (true) {
 					try {
 						if (Thread.interrupted()) {
-							this.close();
+							close();
 							throwShutdownException();
 						}
 
 						C toConsume = this.outputQueue.take();
 
 						if (toConsume == null || toConsume == outputSentinel) {
-							return;
+							break;
 						}
-						
 						consumerFunction.accept(toConsume);
 					} catch (InterruptedException e) {
-						this.close();
+						close();
 						throwShutdownException(e);
 					}
 				}
@@ -294,45 +301,74 @@ public class Producers2Consumers<P, C> implements AutoCloseable {
 		}
 	}
 
-	public void finish() {
-		try {
-			// Add one copy of the sentinel for each processor
-			for (int i = 0; i < inputProcessors; i++) {
-				addInput(inputSentinel);
-			}
-			// Allow other threads to be scheduled by sleeping momentarily
-			Thread.sleep(1);
-		} catch (InterruptedException e) {
-			Thread.currentThread().interrupt();
-			throwShutdownException(e);
-		} finally {
-			close();
-		}
-	}
-
 	@Override
 	public void close() {
-		try {
-			for (int i = 0; i < outputConsumers; i++) {
-				this.outputQueue.add(outputSentinel);
-			}
-			this.inputExecutor.shutdown();
-			this.inputExecutor.awaitTermination(waitTime, waitUnit);
-		} catch (InterruptedException e) {
-			Thread.currentThread().interrupt();
-			throwShutdownException(e);
-		} finally {
-			if (!this.inputExecutor.isTerminated()) {
-				this.inputExecutor.shutdownNow();
+		if (this.closed.compareAndSet(false, true)) {
+			try {
+				try {
+					// Add one copy of the sentinel for each processor
+					for (int i = 0; i < inputProcessors; i++) {
+						addInput(inputSentinel);
+					}
+				} finally {
+					try {
+						// Wait for the input processors to complete normally
+						this.inputExecutor.shutdown();
+						this.inputExecutor.awaitTermination(waitTime, waitUnit);
+					} finally {
+						try {
+							// Add one copy of the sentinel for each consumer
+							for (int i = 0; i < outputConsumers; i++) {
+								this.outputQueue.add(outputSentinel);
+							}
+						} finally {
+							try {
+								// Wait for the output consumers to complete
+								// normally
+								this.outputExecutor.shutdown();
+								this.outputExecutor.awaitTermination(waitTime, waitUnit);
+							} finally {
+								try {
+									// If input termination didn't occur
+									// normally, hard shutdown
+									if (!this.inputExecutor.isTerminated()) {
+										List<Runnable> shutdownNow = this.inputExecutor.shutdownNow();
+										if (!shutdownNow.isEmpty()) {
+											throwShutdownException(
+													new RuntimeException("There were " + shutdownNow.size()
+															+ " input executors that failed to shutdown in time."));
+										}
+									}
+								} finally {
+									// If output termination didn't occur
+									// normally, hard shutdown
+									if (!this.outputExecutor.isTerminated()) {
+										List<Runnable> shutdownNow = this.outputExecutor.shutdownNow();
+										if (!shutdownNow.isEmpty()) {
+											throwShutdownException(
+													new RuntimeException("There were " + shutdownNow.size()
+															+ " output executors that failed to shutdown in time."));
+										}
+									}
+								}
+							}
+						}
+					}
+				}
+			} catch (InterruptedException e) {
+				Thread.currentThread().interrupt();
+				throwShutdownException(e);
 			}
 		}
 	}
 
 	private void throwShutdownException() {
+		logger.error("Shutdown exception occurred");
 		throw new RuntimeException("Execution was interrupted");
 	}
 
 	private void throwShutdownException(Throwable e) {
+		logger.error("Shutdown exception occurred", e);
 		throw new RuntimeException("Execution was interrupted", e);
 	}
 }

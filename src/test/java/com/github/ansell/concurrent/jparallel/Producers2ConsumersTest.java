@@ -44,13 +44,33 @@ public class Producers2ConsumersTest {
 	 * {@link com.github.ansell.concurrent.jparallel.Producers2Consumers#builder(java.util.concurrent.Callable)}.
 	 */
 	@Test
-	public final void testBuilder() {
+	public final void testBuilderDefaults() {
+		Function<Integer, String> processFunction = i -> Integer.toHexString(i);
+		Queue<String> results = new LinkedBlockingQueue<>();
+		Consumer<String> outputFunction = results::add;
+		Producers2Consumers<Integer, String> setup = Producers2Consumers.builder(processFunction, outputFunction).setup();
+		try {
+			for (int i = 0; i < 10000; i++) {
+				setup.addInput(i);
+			}
+		} finally {
+			setup.close();
+		}
+		
+		assertEquals(10000, results.size());
+	}
+
+	/**
+	 * Test method for
+	 * {@link com.github.ansell.concurrent.jparallel.Producers2Consumers#builder(java.util.concurrent.Callable)}.
+	 */
+	@Test
+	public final void testBuilderCustom() {
 		Function<Integer, String> processFunction = i -> Integer.toHexString(i);
 		Queue<String> results = new LinkedBlockingQueue<>();
 		Consumer<String> outputFunction = results::add;
 		Producers2Consumers<Integer, String> setup = Producers2Consumers.builder(processFunction, outputFunction)
-				.inputProcessors(3).outputBuffer(1000)
-				.uncaughtExceptionHandler((t, e) -> logger.error("Uncaught error in Producers2ConsumersTest", e))
+				.inputProcessors(1).outputBuffer(40)
 				.setup();
 		try {
 			for (int i = 0; i < 10000; i++) {

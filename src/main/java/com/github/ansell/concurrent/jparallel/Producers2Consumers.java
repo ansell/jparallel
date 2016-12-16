@@ -44,7 +44,7 @@ public class Producers2Consumers<P, C> implements AutoCloseable {
 
 	private int inputQueueSize = Runtime.getRuntime().availableProcessors() * 10;
 	private int outputQueueSize = Runtime.getRuntime().availableProcessors() * 10;
-	private int inputProcessors = Math.min(1, Runtime.getRuntime().availableProcessors() - 1);
+	private int inputProcessors = Math.max(1, Runtime.getRuntime().availableProcessors() - 1);
 	private int outputConsumers = 1;
 	private BlockingQueue<P> inputQueue = null;
 	private ExecutorService inputExecutor;
@@ -183,6 +183,9 @@ public class Producers2Consumers<P, C> implements AutoCloseable {
 
 	public Producers2Consumers<P, C> setup() {
 		if (this.setup.compareAndSet(false, true)) {
+			if(logger.isInfoEnabled()) {
+				logger.info("Setup called on : {}", this.toString());
+			}
 			if (this.inputQueueSize > 0) {
 				this.inputQueue = new ArrayBlockingQueue<>(inputQueueSize);
 			} else {
@@ -370,5 +373,16 @@ public class Producers2Consumers<P, C> implements AutoCloseable {
 	private void throwShutdownException(Throwable e) {
 		logger.error("Shutdown exception occurred", e);
 		throw new RuntimeException("Execution was interrupted", e);
+	}
+
+	/* (non-Javadoc)
+	 * @see java.lang.Object#toString()
+	 */
+	@Override
+	public String toString() {
+		return "Producers2Consumers [inputQueueSize=" + inputQueueSize + ", outputQueueSize=" + outputQueueSize
+				+ ", inputProcessors=" + inputProcessors + ", outputConsumers=" + outputConsumers + ", threadPriority="
+				+ threadPriority + ", threadNameFormat=" + threadNameFormat + ", waitTime=" + waitTime + ", waitUnit="
+				+ waitUnit + "]";
 	}
 }

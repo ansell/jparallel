@@ -165,7 +165,7 @@
 				<configuration>
 					<programs>
 						<program>
-							<mainClass>com.github.ansell.concurrent.JParallel</mainClass>
+							<mainClass>com.github.ansell.concurrent.jparallel.JParallel</mainClass>
 							<id>jparallel</id>
 						</program>
 					</programs>

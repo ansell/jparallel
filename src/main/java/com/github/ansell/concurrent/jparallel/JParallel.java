@@ -17,6 +17,7 @@ package com.github.ansell.concurrent.jparallel;
 import java.lang.Thread.UncaughtExceptionHandler;
 import java.util.List;
 import java.util.Objects;
+import java.util.Queue;
 import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.ExecutorService;
@@ -54,7 +55,7 @@ public class JParallel<P, C> implements AutoCloseable {
 	private ExecutorService outputExecutor;
 	private Consumer<C> consumerFunction;
 	private int threadPriority = Thread.NORM_PRIORITY;
-	private String threadNameFormat = "pool-thread-%d";
+	private String threadNameFormat = "jparallel-thread-%d";
 	private UncaughtExceptionHandler uncaughtExceptionHandler = (t, e) -> {
 		logger.error("Uncaught exception occurred in thread: " + t.getName(), e);
 	};
@@ -161,6 +162,15 @@ public class JParallel<P, C> implements AutoCloseable {
 		return this;
 	}
 
+	/**
+	 * A custom thread name format to use for the {@link Thread#getName()}. Can
+	 * be parameterised with <code>%d</code> to add a number into the thread
+	 * name.
+	 * 
+	 * @param threadNameFormat
+	 *            A custom thread name format
+	 * @return This object, for fluent programming
+	 */
 	public JParallel<P, C> threadNameFormat(String threadNameFormat) {
 		checkState();
 
@@ -168,6 +178,15 @@ public class JParallel<P, C> implements AutoCloseable {
 		return this;
 	}
 
+	/**
+	 * Set a custom thread priority to use, between {@link Thread#MIN_PRIORITY}
+	 * and {@value Thread#MAX_PRIORITY}. Defaults to
+	 * {@link Thread#NORM_PRIORITY}.
+	 * 
+	 * @param threadPriority
+	 *            The thread priority to use
+	 * @return This object, for fluent programming
+	 */
 	public JParallel<P, C> threadPriority(int threadPriority) {
 		checkState();
 
@@ -181,6 +200,16 @@ public class JParallel<P, C> implements AutoCloseable {
 		return this;
 	}
 
+	/**
+	 * Sets an {@link UncaughtExceptionHandler} to use for responding to
+	 * exceptions that are thrown by threads spawned internally, but otherwise
+	 * not accessible to the main thread.
+	 * 
+	 * @param uncaughtExceptionHandler
+	 *            A handler for uncaught exceptions in internally spawned
+	 *            threads
+	 * @return This object, for fluent programming
+	 */
 	public JParallel<P, C> uncaughtExceptionHandler(UncaughtExceptionHandler uncaughtExceptionHandler) {
 		checkState();
 
@@ -188,6 +217,17 @@ public class JParallel<P, C> implements AutoCloseable {
 		return this;
 	}
 
+	/**
+	 * The amount of time to wait for space in a queue, during
+	 * {@link #add(Object)} before failing.
+	 * 
+	 * @param terminationWaitTime
+	 *            The time to wait
+	 * @param terminationWaitUnit
+	 *            The {@link TimeUnit} that specifies the units for the wait
+	 *            time
+	 * @return This object, for fluent programming
+	 */
 	public JParallel<P, C> queueWaitTime(long queueWaitTime, TimeUnit queueWaitUnit) {
 		checkState();
 
@@ -200,6 +240,17 @@ public class JParallel<P, C> implements AutoCloseable {
 		return this;
 	}
 
+	/**
+	 * The amount of time to wait for each of the {@link ExecutorService}
+	 * objects internally to shutdown.
+	 * 
+	 * @param terminationWaitTime
+	 *            The time to wait
+	 * @param terminationWaitUnit
+	 *            The {@link TimeUnit} that specifies the units for the wait
+	 *            time
+	 * @return This object, for fluent programming
+	 */
 	public JParallel<P, C> terminationWaitTime(long terminationWaitTime, TimeUnit terminationWaitUnit) {
 		checkState();
 
@@ -213,6 +264,16 @@ public class JParallel<P, C> implements AutoCloseable {
 		return this;
 	}
 
+	/**
+	 * Specify the number of times to retry closing the queue during the
+	 * {@link #close()} method, and the amount of time to sleep between retries.
+	 * 
+	 * @param queueCloseRetries
+	 *            The number of times to retry
+	 * @param queueCloseRetrySleep
+	 *            The time to sleep between retries, in milliseconds.
+	 * @return This object, for fluent programming
+	 */
 	public JParallel<P, C> queueCloseRetries(int queueCloseRetries, long queueCloseRetrySleep) {
 		checkState();
 
@@ -228,6 +289,13 @@ public class JParallel<P, C> implements AutoCloseable {
 		return this;
 	}
 
+	/**
+	 * Constructs the internal {@link Queue} and {@link ExecutorService} objects
+	 * and makes them reason to accept objects using the {@link #add(Object)}
+	 * method.
+	 * 
+	 * @return This object, for fluent programming
+	 */
 	public JParallel<P, C> start() {
 		checkState();
 		if (this.started.compareAndSet(false, true)) {
@@ -287,6 +355,10 @@ public class JParallel<P, C> implements AutoCloseable {
 	 *            The item to be processed.
 	 */
 	public void add(P toProcess) {
+		if (this.closed.get()) {
+			throw new IllegalStateException("Already closed");
+		}
+		Objects.requireNonNull(toProcess, "Processing items cannot be null");
 		try {
 			if (Thread.currentThread().isInterrupted()) {
 				this.close();

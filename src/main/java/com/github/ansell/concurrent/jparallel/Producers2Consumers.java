@@ -35,7 +35,9 @@ import com.google.common.util.concurrent.ThreadFactoryBuilder;
 public class Producers2Consumers<P, C> {
 
 	private Function<P, C> functionCode;
-	private int fixedQueueSize = 0;
+	private int inputQueueSize = 0;
+	private int outputQueueSize = 0;
+	private BlockingQueue<P> inputQueue;
 	private BlockingQueue<C> outputQueue;
 	private int concurrencyLevel;
 	private ExecutorService producersService;
@@ -65,8 +67,13 @@ public class Producers2Consumers<P, C> {
 		return this;
 	}
 
-	public Producers2Consumers<P, C> buffer(int fixedQueueSize) {
-		this.fixedQueueSize = fixedQueueSize;
+	public Producers2Consumers<P, C> inputBuffer(int inputQueueSize) {
+		this.inputQueueSize = inputQueueSize;
+		return this;
+	}
+
+	public Producers2Consumers<P, C> outputBuffer(int outputQueueSize) {
+		this.outputQueueSize = outputQueueSize;
 		return this;
 	}
 
@@ -80,8 +87,14 @@ public class Producers2Consumers<P, C> {
 			throw new IllegalStateException("Already setup");
 		}
 
-		if (this.fixedQueueSize > 0) {
-			this.outputQueue = new ArrayBlockingQueue<>(fixedQueueSize);
+		if (this.inputQueueSize > 0) {
+			this.inputQueue = new ArrayBlockingQueue<>(inputQueueSize);
+		} else {
+			this.inputQueue = new LinkedBlockingQueue<>();
+		}
+
+		if (this.outputQueueSize > 0) {
+			this.outputQueue = new ArrayBlockingQueue<>(outputQueueSize);
 		} else {
 			this.outputQueue = new LinkedBlockingQueue<>();
 		}

@@ -43,7 +43,7 @@ public class Producers2ConsumersTest {
 	@Test
 	public final void testBuilder() {
 		Function<Integer, String> functionCode = i -> Integer.toHexString(i);
-		Producers2Consumers.builder(functionCode).concurrency(10).buffer(100)
+		Producers2Consumers.builder(functionCode).concurrency(10).outputBuffer(100)
 				.uncaughtExceptionHandler((t, e) -> logger.error("Uncaught error in Producers2ConsumersTest", e))
 				.setup();
 	}

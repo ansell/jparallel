@@ -36,7 +36,7 @@ public class Producers2Consumers<P, C> {
 
 	private Function<P, C> functionCode;
 	private int fixedQueueSize = 0;
-	private BlockingQueue<C> queue;
+	private BlockingQueue<C> outputQueue;
 	private int concurrencyLevel;
 	private ExecutorService producersService;
 	private int threadPriority;
@@ -81,9 +81,9 @@ public class Producers2Consumers<P, C> {
 		}
 
 		if (this.fixedQueueSize > 0) {
-			this.queue = new ArrayBlockingQueue<>(fixedQueueSize);
+			this.outputQueue = new ArrayBlockingQueue<>(fixedQueueSize);
 		} else {
-			this.queue = new LinkedBlockingQueue<>();
+			this.outputQueue = new LinkedBlockingQueue<>();
 		}
 
 		ThreadFactory nextThreadFactory = new ThreadFactoryBuilder()

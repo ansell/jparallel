@@ -6,17 +6,21 @@ package com.github.ansell.concurrent.jparallel;
 import static org.junit.Assert.*;
 
 import java.util.function.Function;
-import java.util.function.Supplier;
 
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
- * @author mint
- *
+ * Test for {@link Producers2Consumers}
+ * 
+ * @author Peter Ansell
  */
 public class Producers2ConsumersTest {
+
+	private final Logger logger = LoggerFactory.getLogger(this.getClass());
 
 	/**
 	 * @throws java.lang.Exception
@@ -38,9 +42,10 @@ public class Producers2ConsumersTest {
 	 */
 	@Test
 	public final void testBuilder() {
-		Supplier<Integer> producerCode = () -> 0;
-		Function<Integer, String> consumerCode = i -> Integer.toHexString(i);
-		Producers2Consumers.builder(producerCode, consumerCode).concurrency(10).setup();
+		Function<Integer, String> functionCode = i -> Integer.toHexString(i);
+		Producers2Consumers.builder(functionCode).concurrency(10).buffer(100)
+				.uncaughtExceptionHandler((t, e) -> logger.error("Uncaught error in Producers2ConsumersTest", e))
+				.setup();
 	}
 
 }

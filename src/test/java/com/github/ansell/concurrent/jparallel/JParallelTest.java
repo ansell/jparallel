@@ -1,5 +1,16 @@
-/**
- * 
+/*
+ * Copyright (c) 2016, Peter Ansell
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
  */
 package com.github.ansell.concurrent.jparallel;
 
@@ -17,11 +28,11 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
- * Test for {@link Producers2Consumers}
+ * Test for {@link JParallel}
  * 
  * @author Peter Ansell
  */
-public class Producers2ConsumersTest {
+public class JParallelTest {
 
 	private final Logger logger = LoggerFactory.getLogger(this.getClass());
 
@@ -41,14 +52,14 @@ public class Producers2ConsumersTest {
 
 	/**
 	 * Test method for
-	 * {@link com.github.ansell.concurrent.jparallel.Producers2Consumers#builder(java.util.concurrent.Callable)}.
+	 * {@link com.github.ansell.concurrent.jparallel.JParallel#builder(java.util.concurrent.Callable)}.
 	 */
 	@Test
 	public final void testBuilderDefaults() {
 		Function<Integer, String> processFunction = i -> Integer.toHexString(i);
 		Queue<String> results = new LinkedBlockingQueue<>();
 		Consumer<String> outputFunction = results::add;
-		Producers2Consumers<Integer, String> setup = Producers2Consumers.builder(processFunction, outputFunction).setup();
+		JParallel<Integer, String> setup = JParallel.builder(processFunction, outputFunction).start();
 		try {
 			for (int i = 0; i < 10000; i++) {
 				setup.addInput(i);
@@ -62,16 +73,16 @@ public class Producers2ConsumersTest {
 
 	/**
 	 * Test method for
-	 * {@link com.github.ansell.concurrent.jparallel.Producers2Consumers#builder(java.util.concurrent.Callable)}.
+	 * {@link com.github.ansell.concurrent.jparallel.JParallel#builder(java.util.concurrent.Callable)}.
 	 */
 	@Test
 	public final void testBuilderCustom() {
 		Function<Integer, String> processFunction = i -> Integer.toHexString(i);
 		Queue<String> results = new LinkedBlockingQueue<>();
 		Consumer<String> outputFunction = results::add;
-		Producers2Consumers<Integer, String> setup = Producers2Consumers.builder(processFunction, outputFunction)
+		JParallel<Integer, String> setup = JParallel.builder(processFunction, outputFunction)
 				.inputProcessors(1).outputBuffer(40)
-				.setup();
+				.start();
 		try {
 			for (int i = 0; i < 10000; i++) {
 				setup.addInput(i);

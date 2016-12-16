@@ -15,14 +15,15 @@
 package com.github.ansell.concurrent.jparallel;
 
 import java.lang.Thread.UncaughtExceptionHandler;
+import java.util.Objects;
 import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.BlockingQueue;
-import java.util.concurrent.Callable;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.ThreadFactory;
-import java.util.function.Consumer;
+import java.util.function.Function;
+import java.util.function.Supplier;
 
 import com.google.common.util.concurrent.ThreadFactoryBuilder;
 
@@ -31,14 +32,11 @@ import com.google.common.util.concurrent.ThreadFactoryBuilder;
  * 
  * @author Peter Ansell p_ansell@yahoo.com
  */
-public class Producers2Consumers<T> {
+public class Producers2Consumers<P, C> {
 
-	private int numberOfProducers = 1;
-	private int numberOfConsumers = 1;
-	private Callable<T> producerCode;
-	private Consumer<T> consumerCode;
+	private Function<P, C> functionCode;
 	private int fixedQueueSize = 0;
-	private BlockingQueue<T> queue;
+	private BlockingQueue<C> queue;
 	private int concurrencyLevel;
 	private ExecutorService producersService;
 	private int threadPriority;
@@ -50,15 +48,15 @@ public class Producers2Consumers<T> {
 	/**
 	 * Only accessed through the builder pattern.
 	 */
-	private Producers2Consumers(Callable<T> producerCode) {
-		this.producerCode = producerCode;
+	private Producers2Consumers(Function<P, C> functionCode) {
+		this.functionCode = functionCode;
 	}
 
-	public static <T> Producers2Consumers<T> builder(Callable<T> producerCode) {
-		return new Producers2Consumers<T>(producerCode);
+	public static <P, C> Producers2Consumers<P, C> builder(Function<P, C> functionCode) {
+		return new Producers2Consumers<P, C>(Objects.requireNonNull(functionCode, "Function code must not be null"));
 	}
 
-	public Producers2Consumers<T> concurrency(int concurrencyLevel) {
+	public Producers2Consumers<P, C> concurrency(int concurrencyLevel) {
 		if (concurrencyLevel < 0) {
 			throw new IllegalArgumentException("Concurrency level must be non-negative.");
 		}
@@ -67,44 +65,21 @@ public class Producers2Consumers<T> {
 		return this;
 	}
 
-	public Producers2Consumers<T> producers(int numberOfProducers) {
-		if (numberOfProducers < 1) {
-			throw new IllegalArgumentException("Number of producers must be greater than zero.");
-		}
-
-		this.numberOfProducers = numberOfProducers;
-		return this;
-	}
-
-	public Producers2Consumers<T> consumers(int numberOfConsumers) {
-		if (numberOfConsumers < 1) {
-			throw new IllegalArgumentException("Number of consumers must be greater than zero.");
-		}
-
-		this.numberOfConsumers = numberOfConsumers;
-		return this;
-	}
-
-	public Producers2Consumers<T> consumerCode(Consumer<T> consumerCode) {
-		this.consumerCode = consumerCode;
-		return this;
-	}
-
-	public Producers2Consumers<T> consumerBufferSize(int fixedQueueSize) {
+	public Producers2Consumers<P, C> buffer(int fixedQueueSize) {
 		this.fixedQueueSize = fixedQueueSize;
 		return this;
 	}
 
-	public Producers2Consumers<T> uncaughtExceptionHandler(UncaughtExceptionHandler uncaughtExceptionHandler) {
+	public Producers2Consumers<P, C> uncaughtExceptionHandler(UncaughtExceptionHandler uncaughtExceptionHandler) {
 		this.uncaughtExceptionHandler = uncaughtExceptionHandler;
 		return this;
 	}
 
-	public Producers2Consumers<T> setup() {
+	public Producers2Consumers<P, C> setup() {
 		if (this.setup) {
 			throw new IllegalStateException("Already setup");
 		}
-		
+
 		if (this.fixedQueueSize > 0) {
 			this.queue = new ArrayBlockingQueue<>(fixedQueueSize);
 		} else {

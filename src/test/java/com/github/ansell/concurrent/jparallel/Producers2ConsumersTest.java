@@ -5,7 +5,8 @@ package com.github.ansell.concurrent.jparallel;
 
 import static org.junit.Assert.*;
 
-import java.util.concurrent.Callable;
+import java.util.function.Function;
+import java.util.function.Supplier;
 
 import org.junit.After;
 import org.junit.Before;
@@ -32,12 +33,14 @@ public class Producers2ConsumersTest {
 	}
 
 	/**
-	 * Test method for {@link com.github.ansell.concurrent.jparallel.Producers2Consumers#builder(java.util.concurrent.Callable)}.
+	 * Test method for
+	 * {@link com.github.ansell.concurrent.jparallel.Producers2Consumers#builder(java.util.concurrent.Callable)}.
 	 */
 	@Test
 	public final void testBuilder() {
-		Callable<Integer> producerCode = () -> 0;
-		Producers2Consumers.builder(producerCode).concurrency(10).setup();
+		Supplier<Integer> producerCode = () -> 0;
+		Function<Integer, String> consumerCode = i -> Integer.toHexString(i);
+		Producers2Consumers.builder(producerCode, consumerCode).concurrency(10).setup();
 	}
 
 }

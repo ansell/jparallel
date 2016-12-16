@@ -17,6 +17,7 @@ package com.github.ansell.concurrent.jparallel;
 import static org.junit.Assert.*;
 
 import java.util.Queue;
+import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.function.Consumer;
 import java.util.function.Function;
@@ -59,15 +60,32 @@ public class JParallelTest {
 		Function<Integer, String> processFunction = i -> Integer.toHexString(i);
 		Queue<String> results = new LinkedBlockingQueue<>();
 		Consumer<String> outputFunction = results::add;
-		JParallel<Integer, String> setup = JParallel.builder(processFunction, outputFunction).start();
-		try {
+
+		try (JParallel<Integer, String> setup = JParallel.forFunctions(processFunction, outputFunction).start();) {
 			for (int i = 0; i < 10000; i++) {
-				setup.addInput(i);
+				setup.add(i);
 			}
-		} finally {
-			setup.close();
 		}
-		
+
+		assertEquals(10000, results.size());
+	}
+
+	/**
+	 * Test method for
+	 * {@link com.github.ansell.concurrent.jparallel.JParallel#builder(java.util.concurrent.Callable)}.
+	 */
+	@Test
+	public final void testBuilderDefaultsArray() {
+		Function<Integer, String> processFunction = i -> Integer.toHexString(i);
+		Queue<String> results = new ArrayBlockingQueue<>(10000);
+		Consumer<String> outputFunction = results::add;
+
+		try (JParallel<Integer, String> setup = JParallel.forFunctions(processFunction, outputFunction).start();) {
+			for (int i = 0; i < 10000; i++) {
+				setup.add(i);
+			}
+		}
+
 		assertEquals(10000, results.size());
 	}
 
@@ -80,17 +98,14 @@ public class JParallelTest {
 		Function<Integer, String> processFunction = i -> Integer.toHexString(i);
 		Queue<String> results = new LinkedBlockingQueue<>();
 		Consumer<String> outputFunction = results::add;
-		JParallel<Integer, String> setup = JParallel.builder(processFunction, outputFunction)
-				.inputProcessors(1).outputBuffer(40)
-				.start();
-		try {
+
+		try (JParallel<Integer, String> setup = JParallel.forFunctions(processFunction, outputFunction)
+				.inputProcessors(1).outputBuffer(40).start();) {
 			for (int i = 0; i < 10000; i++) {
-				setup.addInput(i);
+				setup.add(i);
 			}
-		} finally {
-			setup.close();
 		}
-		
+
 		assertEquals(10000, results.size());
 	}
 

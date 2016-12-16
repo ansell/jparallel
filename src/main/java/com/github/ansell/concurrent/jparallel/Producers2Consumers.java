@@ -287,6 +287,7 @@ public class Producers2Consumers<P, C> implements AutoCloseable {
 						}
 					} catch (InterruptedException e) {
 						Thread.currentThread().interrupt();
+						close();
 					}
 				}
 			});

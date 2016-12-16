@@ -44,10 +44,10 @@ public class JParallel<P, C> implements AutoCloseable {
 
 	private final Logger logger = LoggerFactory.getLogger(this.getClass());
 
-	private int inputQueueSize = Runtime.getRuntime().availableProcessors() * 10;
-	private int outputQueueSize = Runtime.getRuntime().availableProcessors() * 10;
 	private int inputProcessors = Math.max(1, Runtime.getRuntime().availableProcessors() - 1);
 	private int outputConsumers = 1;
+	private int inputQueueSize = inputProcessors * 10;
+	private int outputQueueSize = inputProcessors * 10;
 	private BlockingQueue<P> inputQueue = null;
 	private ExecutorService inputExecutor;
 	private Function<P, C> processorFunction;
@@ -108,7 +108,7 @@ public class JParallel<P, C> implements AutoCloseable {
 	 * 
 	 * @param inputProcessors
 	 *            The number of threads to use for processing inputs.
-	 * @return Fluent return of this object.
+	 * @return This object, for fluent programming
 	 */
 	public JParallel<P, C> inputProcessors(int inputProcessors) {
 		checkState();
@@ -127,7 +127,7 @@ public class JParallel<P, C> implements AutoCloseable {
 	 * 
 	 * @param outputConsumers
 	 *            The number of threads to use for consuming outputs.
-	 * @return Fluent return of this object.
+	 * @return This object, for fluent programming
 	 */
 	public JParallel<P, C> outputConsumers(int outputConsumers) {
 		checkState();
@@ -140,6 +140,14 @@ public class JParallel<P, C> implements AutoCloseable {
 		return this;
 	}
 
+	/**
+	 * Sets up a fixed input queue for sizes greater than 0, or 0 to use an
+	 * unbounded queue.
+	 * 
+	 * @param inputQueueSize
+	 *            The input queue size to use, or 0 to use an unbounded queue
+	 * @return This object, for fluent programming
+	 */
 	public JParallel<P, C> inputBuffer(int inputQueueSize) {
 		checkState();
 
@@ -151,6 +159,14 @@ public class JParallel<P, C> implements AutoCloseable {
 		return this;
 	}
 
+	/**
+	 * Sets up a fixed output queue for sizes greater than 0, or 0 to use an
+	 * unbounded queue.
+	 * 
+	 * @param outputQueueSize
+	 *            The output queue size to use, or 0 to use an unbounded queue
+	 * @return This object, for fluent programming
+	 */
 	public JParallel<P, C> outputBuffer(int outputQueueSize) {
 		checkState();
 
@@ -353,8 +369,10 @@ public class JParallel<P, C> implements AutoCloseable {
 	 * 
 	 * @param toProcess
 	 *            The item to be processed.
+	 * @return This object, for fluent programming, although typically this
+	 *         method will be called separately and the return value ignored
 	 */
-	public void add(P toProcess) {
+	public JParallel<P, C> add(P toProcess) {
 		if (this.closed.get()) {
 			throw new IllegalStateException("Already closed");
 		}
@@ -377,68 +395,8 @@ public class JParallel<P, C> implements AutoCloseable {
 			this.close();
 			throwShutdownException(e);
 		}
-	}
 
-	private void addOutputConsumers() {
-		for (int i = 0; i < outputConsumers; i++) {
-			this.outputExecutor.submit(() -> {
-				while (true) {
-					try {
-						if (Thread.currentThread().isInterrupted()) {
-							close();
-							throwShutdownException();
-						}
-
-						C toConsume = this.outputQueue.take();
-
-						if (toConsume == null || toConsume == outputSentinel) {
-							break;
-						}
-						consumerFunction.accept(toConsume);
-					} catch (InterruptedException e) {
-						Thread.currentThread().interrupt();
-						close();
-						throwShutdownException(e);
-					}
-				}
-			});
-		}
-	}
-
-	private void addInputProcessors() {
-		for (int i = 0; i < inputProcessors; i++) {
-			this.inputExecutor.submit(() -> {
-				while (true) {
-					try {
-						if (Thread.currentThread().isInterrupted()) {
-							close();
-							throwShutdownException();
-						}
-						P take = this.inputQueue.take();
-						if (take == null || take == inputSentinel) {
-							break;
-						}
-
-						C toConsume = processorFunction.apply(take);
-
-						// Null return from functionCode indicates that we don't
-						// consume the result
-						if (toConsume != null) {
-							if (this.queueWaitTime > 0) {
-								this.outputQueue.offer(toConsume, queueWaitTime, queueWaitUnit);
-							} else if (this.outputQueueSize > 0) {
-								this.outputQueue.put(toConsume);
-							} else {
-								this.outputQueue.add(toConsume);
-							}
-						}
-					} catch (InterruptedException e) {
-						Thread.currentThread().interrupt();
-						close();
-					}
-				}
-			});
-		}
+		return this;
 	}
 
 	@Override
@@ -510,21 +468,85 @@ public class JParallel<P, C> implements AutoCloseable {
 		}
 	}
 
-	private void throwShutdownException() {
-		logger.error("Shutdown exception occurred");
-		throw new RuntimeException("Execution was interrupted");
-	}
-
-	private void throwShutdownException(Throwable e) {
-		logger.error("Shutdown exception occurred", e);
-		throw new RuntimeException("Execution was interrupted", e);
-	}
-
 	@Override
 	public String toString() {
 		return "Producers2Consumers [inputQueueSize=" + inputQueueSize + ", outputQueueSize=" + outputQueueSize
 				+ ", inputProcessors=" + inputProcessors + ", outputConsumers=" + outputConsumers + ", threadPriority="
 				+ threadPriority + ", threadNameFormat=" + threadNameFormat + ", waitTime=" + terminationWaitTime
 				+ ", waitUnit=" + terminationWaitUnit + "]";
+	}
+
+	private void addInputProcessors() {
+		for (int i = 0; i < inputProcessors; i++) {
+			this.inputExecutor.submit(() -> {
+				while (true) {
+					try {
+						if (Thread.currentThread().isInterrupted()) {
+							close();
+							throwShutdownException();
+						}
+						P take = this.inputQueue.take();
+						if (take == null || take == inputSentinel) {
+							break;
+						}
+
+						C toConsume = processorFunction.apply(take);
+
+						// Null return from functionCode indicates that we don't
+						// consume the result
+						if (toConsume != null) {
+							if (this.queueWaitTime > 0) {
+								this.outputQueue.offer(toConsume, queueWaitTime, queueWaitUnit);
+							} else if (this.outputQueueSize > 0) {
+								this.outputQueue.put(toConsume);
+							} else {
+								this.outputQueue.add(toConsume);
+							}
+						}
+					} catch (InterruptedException e) {
+						Thread.currentThread().interrupt();
+						close();
+					}
+				}
+			});
+		}
+	}
+
+	private void addOutputConsumers() {
+		for (int i = 0; i < outputConsumers; i++) {
+			this.outputExecutor.submit(() -> {
+				while (true) {
+					try {
+						if (Thread.currentThread().isInterrupted()) {
+							close();
+							throwShutdownException();
+						}
+
+						C toConsume = this.outputQueue.take();
+
+						if (toConsume == null || toConsume == outputSentinel) {
+							break;
+						}
+						consumerFunction.accept(toConsume);
+					} catch (InterruptedException e) {
+						Thread.currentThread().interrupt();
+						close();
+						throwShutdownException(e);
+					}
+				}
+			});
+		}
+	}
+
+	private void throwShutdownException() {
+		RuntimeException toThrow = new RuntimeException("Execution was interrupted");
+		logger.error("Shutdown exception occurred", toThrow);
+		throw toThrow;
+	}
+
+	private void throwShutdownException(Throwable e) {
+		RuntimeException toThrow = new RuntimeException("Execution was interrupted", e);
+		logger.error("Shutdown exception occurred", toThrow);
+		throw toThrow;
 	}
 }

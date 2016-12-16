@@ -70,6 +70,10 @@
 			<artifactId>jool</artifactId>
 		</dependency>
 		<dependency>
+			<groupId>com.google.guava</groupId>
+			<artifactId>guava</artifactId>
+		</dependency>
+		<dependency>
 			<groupId>org.slf4j</groupId>
 			<artifactId>slf4j-simple</artifactId>
 		</dependency>
@@ -145,6 +149,11 @@
 				<groupId>org.jooq</groupId>
 				<artifactId>jool</artifactId>
 				<version>0.9.12</version>
+			</dependency>
+			<dependency>
+				<groupId>com.google.guava</groupId>
+				<artifactId>guava</artifactId>
+				<version>20.0</version>
 			</dependency>
 		</dependencies>
 	</dependencyManagement>

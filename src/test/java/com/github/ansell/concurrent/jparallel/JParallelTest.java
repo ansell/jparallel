@@ -40,7 +40,6 @@ import org.slf4j.LoggerFactory;
  */
 public class JParallelTest {
 
-	private final Logger logger = LoggerFactory.getLogger(this.getClass());
 	private int count;
 
 	/**
@@ -70,7 +69,7 @@ public class JParallelTest {
 		Set<String> uniqueResults = new LinkedHashSet<>(sortedResults);
 		assertEquals(count, uniqueResults.size());
 	}
-	
+
 	/**
 	 * Test method for
 	 * {@link com.github.ansell.concurrent.jparallel.JParallel#builder(java.util.concurrent.Callable)}.

@@ -23,15 +23,15 @@ import java.util.List;
 import java.util.Queue;
 import java.util.Set;
 import java.util.concurrent.ArrayBlockingQueue;
-import java.util.concurrent.LinkedBlockingQueue;
+import java.util.concurrent.TimeUnit;
 import java.util.function.Consumer;
 import java.util.function.Function;
 
 import org.junit.After;
 import org.junit.Before;
+import org.junit.Rule;
 import org.junit.Test;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import org.junit.rules.Timeout;
 
 /**
  * Test for {@link JParallel}
@@ -40,6 +40,9 @@ import org.slf4j.LoggerFactory;
  */
 public class JParallelTest {
 
+	@Rule
+	public Timeout timeout = new Timeout(1, TimeUnit.MINUTES);
+	
 	private int count;
 
 	/**
@@ -59,7 +62,7 @@ public class JParallelTest {
 
 	@Test
 	public final void testSerial() {
-		Queue<String> results = new LinkedBlockingQueue<>();
+		Queue<String> results = new ArrayBlockingQueue<>(count);
 		for (int i = 0; i < count; i++) {
 			results.add(Integer.toHexString(i));
 		}
@@ -76,29 +79,6 @@ public class JParallelTest {
 	 */
 	@Test
 	public final void testBuilderDefaults() {
-		Function<Integer, String> processFunction = i -> Integer.toHexString(i);
-		Queue<String> results = new LinkedBlockingQueue<>();
-		Consumer<String> outputFunction = results::add;
-
-		try (JParallel<Integer, String> setup = JParallel.forFunctions(processFunction, outputFunction).start();) {
-			for (int i = 0; i < count; i++) {
-				setup.add(i);
-			}
-		}
-
-		assertEquals(count, results.size());
-		List<String> sortedResults = new ArrayList<>(results);
-		Collections.sort(sortedResults);
-		Set<String> uniqueResults = new LinkedHashSet<>(sortedResults);
-		assertEquals(count, uniqueResults.size());
-	}
-
-	/**
-	 * Test method for
-	 * {@link com.github.ansell.concurrent.jparallel.JParallel#builder(java.util.concurrent.Callable)}.
-	 */
-	@Test
-	public final void testBuilderDefaultsArray() {
 		Function<Integer, String> processFunction = i -> Integer.toHexString(i);
 		Queue<String> results = new ArrayBlockingQueue<>(count);
 		Consumer<String> outputFunction = results::add;
@@ -123,7 +103,7 @@ public class JParallelTest {
 	@Test
 	public final void testBuilderCustom() {
 		Function<Integer, String> processFunction = i -> Integer.toHexString(i);
-		Queue<String> results = new LinkedBlockingQueue<>();
+		Queue<String> results = new ArrayBlockingQueue<>(count);
 		Consumer<String> outputFunction = results::add;
 
 		try (JParallel<Integer, String> setup = JParallel.forFunctions(processFunction, outputFunction)

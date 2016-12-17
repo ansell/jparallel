@@ -47,6 +47,10 @@ import com.google.common.util.concurrent.ThreadFactoryBuilder;
  * calling {@link #close()}.
  * 
  * @author Peter Ansell p_ansell@yahoo.com
+ * @param <P>
+ *            The type of the input objects to be processed
+ * @param <C>
+ *            The type of the output objects to be consumed
  */
 public final class JParallel<P, C> implements AutoCloseable {
 
@@ -87,11 +91,17 @@ public final class JParallel<P, C> implements AutoCloseable {
 	/**
 	 * Only accessed through the builder pattern.
 	 * 
+	 * @param inputProcessor
+	 *            The function to transform input objects to output objects.
+	 * @param outputConsumer
+	 *            The function to send the outputs to.
+	 * @throws NullPointerException
+	 *             if any parameter is null
 	 * @see JParallel#forFunctions(Function, Consumer)
 	 */
 	private JParallel(final Function<P, C> inputProcessor, final Consumer<C> outputConsumer) {
-		this.processorFunction = inputProcessor;
-		this.consumerFunction = outputConsumer;
+		this.processorFunction = Objects.requireNonNull(inputProcessor, "Processor function code must not be null");
+		this.consumerFunction = Objects.requireNonNull(outputConsumer, "Consumer function code must not be null");
 	}
 
 	/**
@@ -102,14 +112,19 @@ public final class JParallel<P, C> implements AutoCloseable {
 	 *            The function to transform input objects to output objects.
 	 * @param outputConsumer
 	 *            The function to send the outputs to.
+	 * @param <P>
+	 *            The type of the input objects to be processed
+	 * @param <C>
+	 *            The type of the output objects to be consumed
 	 * @return An instance of JParallel that can be configured and started,
 	 *         before calling the {@link #add(Object)} method to send items
 	 *         through the parallel processing.
+	 * @throws NullPointerException
+	 *             if any parameter is null
 	 */
 	public static <P, C> JParallel<P, C> forFunctions(final Function<P, C> inputProcessor,
 			final Consumer<C> outputConsumer) {
-		return new JParallel<P, C>(Objects.requireNonNull(inputProcessor, "Processor function code must not be null"),
-				Objects.requireNonNull(outputConsumer, "Consumer function code must not be null"));
+		return new JParallel<P, C>(inputProcessor, outputConsumer);
 	}
 
 	/**
@@ -240,7 +255,9 @@ public final class JParallel<P, C> implements AutoCloseable {
 	public final JParallel<P, C> uncaughtExceptionHandler(final UncaughtExceptionHandler uncaughtExceptionHandler) {
 		checkState();
 
-		this.uncaughtExceptionHandler = uncaughtExceptionHandler;
+		this.uncaughtExceptionHandler = Objects.requireNonNull(uncaughtExceptionHandler,
+				"Uncaught exception handler must not be null");
+		;
 		return this;
 	}
 

@@ -42,15 +42,17 @@ public class JParallelTest {
 
 	@Rule
 	public Timeout timeout = new Timeout(1, TimeUnit.MINUTES);
-	
+
 	private int count;
+	private int baseDelay;
 
 	/**
 	 * @throws java.lang.Exception
 	 */
 	@Before
 	public void setUp() throws Exception {
-		count = 1000000;
+		count = 1000;
+		baseDelay = 1;
 	}
 
 	/**
@@ -118,6 +120,62 @@ public class JParallelTest {
 		Collections.sort(sortedResults);
 		Set<String> uniqueResults = new LinkedHashSet<>(sortedResults);
 		assertEquals(count, uniqueResults.size());
+	}
+
+	/**
+	 * Test method for
+	 * {@link com.github.ansell.concurrent.jparallel.JParallel#builder(java.util.concurrent.Callable)}.
+	 */
+	@Test
+	public final void testBuilderWithSerial() {
+
+		int[] delays = new int[count];
+		for (int i = 0; i < count; i++) {
+			delays[i] = baseDelay + (int) Math.round(Math.random() + baseDelay);
+		}
+
+		Function<Integer, String> processFunction = i -> {
+			try {
+				Thread.sleep(delays[i]);
+			} catch (InterruptedException e) {
+				Thread.currentThread().interrupt();
+			}
+			return Integer.toHexString(i);
+		};
+		Queue<String> results = new ArrayBlockingQueue<>(count);
+		Consumer<String> outputFunction = results::add;
+
+		long startParallel = System.currentTimeMillis();
+		try (JParallel<Integer, String> setup = JParallel.forFunctions(processFunction, outputFunction).start();) {
+			for (int i = 0; i < count; i++) {
+				setup.add(i);
+			}
+		}
+		System.out.println("Parallel processing took: " + (System.currentTimeMillis() - startParallel) + " ms");
+
+		Queue<String> serialResults = new ArrayBlockingQueue<>(count);
+		long startSerial = System.currentTimeMillis();
+		for (int i = 0; i < count; i++) {
+			try {
+				Thread.sleep(delays[i]);
+			} catch (InterruptedException e) {
+				Thread.currentThread().interrupt();
+			}
+			serialResults.add(Integer.toHexString(i));
+		}
+		System.out.println("Serial processing took: " + (System.currentTimeMillis() - startSerial) + " ms");
+
+		assertEquals(count, results.size());
+		List<String> sortedResults = new ArrayList<>(results);
+		Collections.sort(sortedResults);
+		Set<String> uniqueResults = new LinkedHashSet<>(sortedResults);
+		assertEquals(count, uniqueResults.size());
+
+		assertEquals(count, serialResults.size());
+		List<String> sortedSerialResults = new ArrayList<>(serialResults);
+		Collections.sort(sortedSerialResults);
+		Set<String> uniqueSerialResults = new LinkedHashSet<>(sortedSerialResults);
+		assertEquals(count, uniqueSerialResults.size());
 	}
 
 }

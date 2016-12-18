@@ -178,4 +178,48 @@ public class JParallelTest {
 		assertEquals(count, uniqueSerialResults.size());
 	}
 
+	/**
+	 * Test method for
+	 * {@link com.github.ansell.concurrent.jparallel.JParallel#builder(java.util.concurrent.Callable)}.
+	 */
+	@Test
+	public final void testBuilderDefaultUncaughtExceptionHandlerInput() {
+		Function<Integer, String> processFunction = i -> {
+			throw new RuntimeException("Testing uncaught exception handler on inputs");
+		};
+		Queue<String> results = new ArrayBlockingQueue<>(count);
+		Consumer<String> outputFunction = results::add;
+
+		try (JParallel<Integer, String> setup = JParallel.forFunctions(processFunction, outputFunction)
+				.queueWaitTime(5, TimeUnit.MILLISECONDS).start();) {
+			for (int i = 0; i < count; i++) {
+				setup.add(i);
+			}
+		}
+
+		assertEquals(0, results.size());
+	}
+
+	/**
+	 * Test method for
+	 * {@link com.github.ansell.concurrent.jparallel.JParallel#builder(java.util.concurrent.Callable)}.
+	 */
+	@Test
+	public final void testBuilderDefaultUncaughtExceptionHandlerOutput() {
+		Function<Integer, String> processFunction = i -> Integer.toHexString(i);
+		Queue<String> results = new ArrayBlockingQueue<>(count);
+		Consumer<String> outputFunction = s -> {
+			throw new RuntimeException("Testing uncaught exception handler on outputs");
+		};
+
+		try (JParallel<Integer, String> setup = JParallel.forFunctions(processFunction, outputFunction)
+				.queueWaitTime(5, TimeUnit.MILLISECONDS).start();) {
+			for (int i = 0; i < count; i++) {
+				setup.add(i);
+			}
+		}
+
+		assertEquals(0, results.size());
+	}
+
 }

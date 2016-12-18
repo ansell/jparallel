@@ -71,8 +71,8 @@ public final class JParallel<P, C> implements AutoCloseable {
 	private UncaughtExceptionHandler uncaughtExceptionHandler = (t, e) -> {
 		logger.error("Uncaught exception occurred in thread: " + t.getName(), e);
 	};
-	private long queueWaitTime = 0;
-	private TimeUnit queueWaitUnit = TimeUnit.MILLISECONDS;
+	private long queueWaitTime = 1;
+	private TimeUnit queueWaitUnit = TimeUnit.MINUTES;
 	private long terminationWaitTime = 1;
 	private TimeUnit terminationWaitUnit = TimeUnit.MINUTES;
 
@@ -453,6 +453,12 @@ public final class JParallel<P, C> implements AutoCloseable {
 						if (nextRetryCount >= this.queueCloseRetries) {
 							this.logger.warn("Failed to add sentinel to input queue after {} retries",
 									this.queueCloseRetries);
+							this.inputQueue.clear();
+							int nextEmergencyRetryCount = 0;
+							while (!this.inputQueue.offer(this.inputSentinel)
+									&& nextEmergencyRetryCount < this.queueCloseRetries) {
+								this.inputQueue.clear();
+							}
 						}
 					}
 				} finally {
@@ -473,6 +479,12 @@ public final class JParallel<P, C> implements AutoCloseable {
 								if (nextRetryCount >= this.queueCloseRetries) {
 									this.logger.warn("Failed to add sentinel to output queue after {} retries",
 											this.queueCloseRetries);
+									this.inputQueue.clear();
+									int nextEmergencyRetryCount = 0;
+									while (!this.outputQueue.offer(this.outputSentinel)
+											&& nextEmergencyRetryCount < this.queueCloseRetries) {
+										this.outputQueue.clear();
+									}
 								}
 							}
 						} finally {

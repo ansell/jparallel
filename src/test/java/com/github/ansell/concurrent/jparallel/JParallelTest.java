@@ -738,4 +738,38 @@ public class JParallelTest {
 		assertEquals(0, results.size());
 	}
 
+	/**
+	 * Test method for
+	 * {@link com.github.ansell.concurrent.jparallel.JParallel#builder(java.util.concurrent.Callable)}.
+	 */
+	@Test
+	public final void testBuilderWaitAndInterruptAfterAdd() throws Exception {
+		CountDownLatch testLatch = new CountDownLatch(1);
+		Function<Integer, String> processFunction = i -> {
+			return Integer.toHexString(i);
+		};
+		Queue<String> results = new ArrayBlockingQueue<>(count);
+		Consumer<String> outputFunction = s -> {
+			try {
+				testLatch.await();
+			} catch (InterruptedException e) {
+				throw new RuntimeException(e);
+			}
+			results.add(s);
+		};
+
+		Thread testThread = new Thread(() -> {
+			try (JParallel<Integer, String> setup = JParallel.forFunctions(processFunction, outputFunction).start();) {
+				for (int i = 0; i < count; i++) {
+					setup.add(i);
+					Thread.currentThread().interrupt();
+				}
+			}
+		});
+		testThread.start();
+		Thread.sleep(1000);
+		testLatch.countDown();
+
+		assertEquals(0, results.size());
+	}
 }

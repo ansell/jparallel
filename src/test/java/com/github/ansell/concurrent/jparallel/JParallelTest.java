@@ -23,6 +23,7 @@ import java.util.List;
 import java.util.Queue;
 import java.util.Set;
 import java.util.concurrent.ArrayBlockingQueue;
+import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Consumer;
 import java.util.function.Function;
@@ -113,7 +114,8 @@ public class JParallelTest {
 		Consumer<String> outputFunction = results::add;
 
 		try (JParallel<Integer, String> setup = JParallel.forFunctions(processFunction, outputFunction)
-				.inputProcessors(1).outputConsumers(2).inputBuffer(0).outputBuffer(0).start();) {
+				.inputProcessors(1).outputConsumers(2).inputBuffer(0).outputBuffer(0).queueCloseRetries(10, 10L)
+				.start();) {
 			for (int i = 0; i < count; i++) {
 				setup.add(i);
 			}
@@ -369,7 +371,7 @@ public class JParallelTest {
 			throw new RuntimeException("Consume function should not be called");
 		};
 
-		JParallel<Integer,String> jParallel = JParallel.forFunctions(processFunction, outputFunction).start();
+		JParallel<Integer, String> jParallel = JParallel.forFunctions(processFunction, outputFunction).start();
 		jParallel.close();
 		thrown.expect(IllegalStateException.class);
 		jParallel.inputBuffer(0);
@@ -388,7 +390,7 @@ public class JParallelTest {
 			throw new RuntimeException("Consume function should not be called");
 		};
 
-		JParallel<Integer,String> jParallel = JParallel.forFunctions(processFunction, outputFunction).start();
+		JParallel<Integer, String> jParallel = JParallel.forFunctions(processFunction, outputFunction).start();
 		jParallel.close();
 		thrown.expect(IllegalStateException.class);
 		jParallel.add(0);
@@ -407,7 +409,7 @@ public class JParallelTest {
 			throw new RuntimeException("Consume function should not be called");
 		};
 
-		JParallel<Integer,String> jParallel = JParallel.forFunctions(processFunction, outputFunction);
+		JParallel<Integer, String> jParallel = JParallel.forFunctions(processFunction, outputFunction);
 		thrown.expect(IllegalStateException.class);
 		jParallel.add(0);
 	}
@@ -631,6 +633,74 @@ public class JParallelTest {
 
 		thrown.expect(IllegalArgumentException.class);
 		JParallel.forFunctions(processFunction, outputFunction).queueCloseRetries(0, -1L);
+	}
+
+	/**
+	 * Test method for
+	 * {@link com.github.ansell.concurrent.jparallel.JParallel#builder(java.util.concurrent.Callable)}.
+	 */
+	@Test
+	public final void testBuilderWaitAndInterruptDuringAddProcess() throws Exception {
+		CountDownLatch testLatch = new CountDownLatch(1);
+		Function<Integer, String> processFunction = i -> {
+			try {
+				testLatch.await();
+			} catch (InterruptedException e) {
+				throw new RuntimeException(e);
+			}
+			return Integer.toHexString(i);
+		};
+		Queue<String> results = new ArrayBlockingQueue<>(count);
+		Consumer<String> outputFunction = results::add;
+
+		Thread testThread = new Thread(() -> {
+			try (JParallel<Integer, String> setup = JParallel.forFunctions(processFunction, outputFunction).start();) {
+				for (int i = 0; i < count; i++) {
+					setup.add(i);
+				}
+			}
+		});
+		testThread.start();
+		Thread.sleep(1000);
+		testThread.interrupt();
+		testLatch.countDown();
+
+		assertEquals(0, results.size());
+	}
+
+	/**
+	 * Test method for
+	 * {@link com.github.ansell.concurrent.jparallel.JParallel#builder(java.util.concurrent.Callable)}.
+	 */
+	@Test
+	public final void testBuilderWaitAndInterruptDuringAddConsume() throws Exception {
+		CountDownLatch testLatch = new CountDownLatch(1);
+		Function<Integer, String> processFunction = i -> {
+			return Integer.toHexString(i);
+		};
+		Queue<String> results = new ArrayBlockingQueue<>(count);
+		Consumer<String> outputFunction = s -> {
+			try {
+				testLatch.await();
+			} catch (InterruptedException e) {
+				throw new RuntimeException(e);
+			}
+			results.add(s);
+		};
+
+		Thread testThread = new Thread(() -> {
+			try (JParallel<Integer, String> setup = JParallel.forFunctions(processFunction, outputFunction).start();) {
+				for (int i = 0; i < count; i++) {
+					setup.add(i);
+				}
+			}
+		});
+		testThread.start();
+		Thread.sleep(1000);
+		testThread.interrupt();
+		testLatch.countDown();
+
+		assertEquals(0, results.size());
 	}
 
 }

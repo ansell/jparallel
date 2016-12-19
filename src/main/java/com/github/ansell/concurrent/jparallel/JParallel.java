@@ -423,7 +423,11 @@ public final class JParallel<P, C> implements AutoCloseable {
 			}
 
 			if (this.queueWaitTime > 0) {
-				this.inputQueue.offer(toProcess, this.queueWaitTime, this.queueWaitUnit);
+				boolean offer = this.inputQueue.offer(toProcess, this.queueWaitTime, this.queueWaitUnit);
+				if (!offer) {
+					this.logger.error("Input queue failed to accept offered item within time allowed: {} {}",
+							this.queueWaitTime, this.queueWaitUnit);
+				}
 			} else if (this.inputQueueSize > 0) {
 				this.inputQueue.put(toProcess);
 			} else {
@@ -561,7 +565,13 @@ public final class JParallel<P, C> implements AutoCloseable {
 						// consume the result
 						if (toConsume != null) {
 							if (this.queueWaitTime > 0) {
-								this.outputQueue.offer(toConsume, this.queueWaitTime, this.queueWaitUnit);
+								boolean offer = this.outputQueue.offer(toConsume, this.queueWaitTime,
+										this.queueWaitUnit);
+								if (!offer) {
+									this.logger.error(
+											"Output queue failed to accept offered item within time allowed: {} {}",
+											this.queueWaitTime, this.queueWaitUnit);
+								}
 							} else if (this.outputQueueSize > 0) {
 								this.outputQueue.put(toConsume);
 							} else {

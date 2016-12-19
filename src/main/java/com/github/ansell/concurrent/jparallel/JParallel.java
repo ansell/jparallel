@@ -440,6 +440,9 @@ public final class JParallel<P, C> implements AutoCloseable {
 
 	@Override
 	public final void close() {
+		if (!this.started.get()) {
+			throw new IllegalStateException("Start was not called");
+		}
 		if (this.closed.compareAndSet(false, true)) {
 			try {
 				try {

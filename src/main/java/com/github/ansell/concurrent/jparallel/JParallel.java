@@ -257,7 +257,7 @@ public final class JParallel<P, C> implements AutoCloseable {
 
 		this.uncaughtExceptionHandler = Objects.requireNonNull(uncaughtExceptionHandler,
 				"Uncaught exception handler must not be null");
-		;
+
 		return this;
 	}
 

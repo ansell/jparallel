@@ -131,6 +131,102 @@ public class JParallelTest {
 	 * {@link com.github.ansell.concurrent.jparallel.JParallel#builder(java.util.concurrent.Callable)}.
 	 */
 	@Test
+	public final void testBuilderInputQueueWaitZeroQueueSizeNonZero() {
+		Function<Integer, String> processFunction = i -> Integer.toHexString(i);
+		Queue<String> results = new ArrayBlockingQueue<>(count);
+		Consumer<String> outputFunction = results::add;
+
+		try (JParallel<Integer, String> setup = JParallel.forFunctions(processFunction, outputFunction)
+				.queueWaitTime(0, TimeUnit.MILLISECONDS).inputBuffer(1).start();) {
+			for (int i = 0; i < count; i++) {
+				setup.add(i);
+			}
+		}
+
+		assertEquals(count, results.size());
+		List<String> sortedResults = new ArrayList<>(results);
+		Collections.sort(sortedResults);
+		Set<String> uniqueResults = new LinkedHashSet<>(sortedResults);
+		assertEquals(count, uniqueResults.size());
+	}
+
+	/**
+	 * Test method for
+	 * {@link com.github.ansell.concurrent.jparallel.JParallel#builder(java.util.concurrent.Callable)}.
+	 */
+	@Test
+	public final void testBuilderInputQueueWaitZeroQueueSizeZero() {
+		Function<Integer, String> processFunction = i -> Integer.toHexString(i);
+		Queue<String> results = new ArrayBlockingQueue<>(count);
+		Consumer<String> outputFunction = results::add;
+
+		try (JParallel<Integer, String> setup = JParallel.forFunctions(processFunction, outputFunction)
+				.queueWaitTime(0, TimeUnit.MILLISECONDS).inputBuffer(0).start();) {
+			for (int i = 0; i < count; i++) {
+				setup.add(i);
+			}
+		}
+
+		assertEquals(count, results.size());
+		List<String> sortedResults = new ArrayList<>(results);
+		Collections.sort(sortedResults);
+		Set<String> uniqueResults = new LinkedHashSet<>(sortedResults);
+		assertEquals(count, uniqueResults.size());
+	}
+
+	/**
+	 * Test method for
+	 * {@link com.github.ansell.concurrent.jparallel.JParallel#builder(java.util.concurrent.Callable)}.
+	 */
+	@Test
+	public final void testBuilderOutputQueueWaitZeroQueueSizeNonZero() {
+		Function<Integer, String> processFunction = i -> Integer.toHexString(i);
+		Queue<String> results = new ArrayBlockingQueue<>(count);
+		Consumer<String> outputFunction = results::add;
+
+		try (JParallel<Integer, String> setup = JParallel.forFunctions(processFunction, outputFunction)
+				.queueWaitTime(0, TimeUnit.MILLISECONDS).outputBuffer(1).start();) {
+			for (int i = 0; i < count; i++) {
+				setup.add(i);
+			}
+		}
+
+		assertEquals(count, results.size());
+		List<String> sortedResults = new ArrayList<>(results);
+		Collections.sort(sortedResults);
+		Set<String> uniqueResults = new LinkedHashSet<>(sortedResults);
+		assertEquals(count, uniqueResults.size());
+	}
+
+	/**
+	 * Test method for
+	 * {@link com.github.ansell.concurrent.jparallel.JParallel#builder(java.util.concurrent.Callable)}.
+	 */
+	@Test
+	public final void testBuilderOutputQueueWaitZeroQueueSizeZero() {
+		Function<Integer, String> processFunction = i -> Integer.toHexString(i);
+		Queue<String> results = new ArrayBlockingQueue<>(count);
+		Consumer<String> outputFunction = results::add;
+
+		try (JParallel<Integer, String> setup = JParallel.forFunctions(processFunction, outputFunction)
+				.queueWaitTime(0, TimeUnit.MILLISECONDS).outputBuffer(0).start();) {
+			for (int i = 0; i < count; i++) {
+				setup.add(i);
+			}
+		}
+
+		assertEquals(count, results.size());
+		List<String> sortedResults = new ArrayList<>(results);
+		Collections.sort(sortedResults);
+		Set<String> uniqueResults = new LinkedHashSet<>(sortedResults);
+		assertEquals(count, uniqueResults.size());
+	}
+
+	/**
+	 * Test method for
+	 * {@link com.github.ansell.concurrent.jparallel.JParallel#builder(java.util.concurrent.Callable)}.
+	 */
+	@Test
 	public final void testBuilderWithSerial() {
 
 		int[] delays = new int[count];
@@ -277,6 +373,43 @@ public class JParallelTest {
 		jParallel.close();
 		thrown.expect(IllegalStateException.class);
 		jParallel.inputBuffer(0);
+	}
+
+	/**
+	 * Test method for
+	 * {@link com.github.ansell.concurrent.jparallel.JParallel#builder(java.util.concurrent.Callable)}.
+	 */
+	@Test
+	public final void testBuilderStateAddAfterClose() {
+		Function<Integer, String> processFunction = i -> {
+			throw new RuntimeException("Process function should not be called");
+		};
+		Consumer<String> outputFunction = s -> {
+			throw new RuntimeException("Consume function should not be called");
+		};
+
+		JParallel<Integer,String> jParallel = JParallel.forFunctions(processFunction, outputFunction).start();
+		jParallel.close();
+		thrown.expect(IllegalStateException.class);
+		jParallel.add(0);
+	}
+
+	/**
+	 * Test method for
+	 * {@link com.github.ansell.concurrent.jparallel.JParallel#builder(java.util.concurrent.Callable)}.
+	 */
+	@Test
+	public final void testBuilderStateAddBeforeStart() {
+		Function<Integer, String> processFunction = i -> {
+			throw new RuntimeException("Process function should not be called");
+		};
+		Consumer<String> outputFunction = s -> {
+			throw new RuntimeException("Consume function should not be called");
+		};
+
+		JParallel<Integer,String> jParallel = JParallel.forFunctions(processFunction, outputFunction);
+		thrown.expect(IllegalStateException.class);
+		jParallel.add(0);
 	}
 
 	/**

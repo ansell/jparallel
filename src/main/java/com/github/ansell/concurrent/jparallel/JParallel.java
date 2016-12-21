@@ -265,9 +265,9 @@ public final class JParallel<P, C> implements AutoCloseable {
 	 * The amount of time to wait for space in a queue, during
 	 * {@link #add(Object)} before failing.
 	 * 
-	 * @param terminationWaitTime
+	 * @param queueWaitTime
 	 *            The time to wait
-	 * @param terminationWaitUnit
+	 * @param queueWaitUnit
 	 *            The {@link TimeUnit} that specifies the units for the wait
 	 *            time
 	 * @return This object, for fluent programming

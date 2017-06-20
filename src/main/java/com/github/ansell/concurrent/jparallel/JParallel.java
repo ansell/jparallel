@@ -606,9 +606,16 @@ public final class JParallel<P, C> implements AutoCloseable {
 							break;
 						}
 
-						C toConsume = this.outputQueue.take();
+						C toConsume = this.outputQueue.poll(this.queueWaitTime, this.queueWaitUnit);
 
-						if (toConsume == null || toConsume == this.outputSentinel) {
+						if (toConsume == null) {
+							// Continue back to the start of the loop, checking
+							// the interrupt status before looking for more
+							// inputs
+							continue;
+						}
+						if (toConsume == this.outputSentinel) {
+							// This is our cue to leave
 							break;
 						}
 						this.consumerFunction.accept(toConsume);

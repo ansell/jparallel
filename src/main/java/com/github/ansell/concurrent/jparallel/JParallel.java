@@ -71,13 +71,13 @@ public final class JParallel<P, C> implements AutoCloseable {
 	private UncaughtExceptionHandler uncaughtExceptionHandler = (t, e) -> {
 		logger.error("Uncaught exception occurred in thread: " + t.getName(), e);
 	};
-	private long queueWaitTime = 1;
-	private TimeUnit queueWaitUnit = TimeUnit.MINUTES;
+	private long queueWaitTime = 10;
+	private TimeUnit queueWaitUnit = TimeUnit.SECONDS;
 	private long terminationWaitTime = 1;
 	private TimeUnit terminationWaitUnit = TimeUnit.MINUTES;
 
-	private int queueCloseRetries = 5;
-	private long queueCloseRetrySleep = 1;
+	private int queueCloseRetries = 10;
+	private long queueCloseRetrySleep = 5;
 
 	private final AtomicBoolean started = new AtomicBoolean(false);
 	private final CountDownLatch startCompleted = new CountDownLatch(1);

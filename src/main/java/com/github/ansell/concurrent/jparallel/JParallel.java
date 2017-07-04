@@ -100,6 +100,11 @@ public final class JParallel<P, C> implements AutoCloseable {
 	private final CountDownLatch startCompleted = new CountDownLatch(1);
 	private final AtomicBoolean closed = new AtomicBoolean(false);
 
+	// Internal verification that a programming bug here should not accidentally
+	// add multiples of the required consumers
+	private final AtomicBoolean inputProcessorsInitialised = new AtomicBoolean(false);
+	private final AtomicBoolean outputConsumersInitialised = new AtomicBoolean(false);
+
 	@SuppressWarnings("unchecked")
 	private final P inputSentinel = (P) new Object();
 	@SuppressWarnings("unchecked")
@@ -574,87 +579,91 @@ public final class JParallel<P, C> implements AutoCloseable {
 	}
 
 	private final void addInputProcessors() {
-		for (int i = 0; i < this.inputProcessors; i++) {
-			this.inputExecutor.submit(() -> {
-				try {
-					while (true) {
-						if (Thread.currentThread().isInterrupted()) {
-							close();
-							throwShutdownException();
-							break;
-						}
-						P take = this.inputQueue.poll(this.queueWaitTime, this.queueWaitUnit);
-						if (take == null) {
-							// Continue back to the start of the loop, checking
-							// the interrupt status before looking for more
-							// inputs
-							continue;
-						}
-						if (take == this.inputSentinel) {
-							// This is our cue to leave
-							break;
-						}
+		if (inputProcessorsInitialised.compareAndSet(false, true)) {
+			for (int i = 0; i < this.inputProcessors; i++) {
+				this.inputExecutor.submit(() -> {
+					try {
+						while (true) {
+							if (Thread.currentThread().isInterrupted()) {
+								close();
+								throwShutdownException();
+								break;
+							}
+							P take = this.inputQueue.poll(this.queueWaitTime, this.queueWaitUnit);
+							if (take == null) {
+								// Continue back to the start of the loop,
+								// checking the interrupt status before looking
+								// for more inputs
+								continue;
+							}
+							if (take == this.inputSentinel) {
+								// This is our cue to leave
+								break;
+							}
 
-						C toConsume = this.processorFunction.apply(take);
+							C toConsume = this.processorFunction.apply(take);
 
-						// Null return from functionCode indicates that we don't
-						// consume the result
-						if (toConsume != null) {
-							if (this.queueWaitTime > 0) {
-								boolean offer = this.outputQueue.offer(toConsume, this.queueWaitTime,
-										this.queueWaitUnit);
-								if (!offer) {
-									this.logger.error(
-											"Output queue failed to accept offered item within time allowed: {} {}",
-											this.queueWaitTime, this.queueWaitUnit);
+							// Null return from functionCode indicates that we
+							// don't consume the result
+							if (toConsume != null) {
+								if (this.queueWaitTime > 0) {
+									boolean offer = this.outputQueue.offer(toConsume, this.queueWaitTime,
+											this.queueWaitUnit);
+									if (!offer) {
+										this.logger.error(
+												"Output queue failed to accept offered item within time allowed: {} {}",
+												this.queueWaitTime, this.queueWaitUnit);
+									}
+								} else if (this.outputQueueSize > 0) {
+									this.outputQueue.put(toConsume);
+								} else {
+									this.outputQueue.add(toConsume);
 								}
-							} else if (this.outputQueueSize > 0) {
-								this.outputQueue.put(toConsume);
-							} else {
-								this.outputQueue.add(toConsume);
 							}
 						}
+					} catch (InterruptedException e) {
+						Thread.currentThread().interrupt();
+						close();
+						throwShutdownException();
 					}
-				} catch (InterruptedException e) {
-					Thread.currentThread().interrupt();
-					close();
-					throwShutdownException();
-				}
-			});
+				});
+			}
 		}
 	}
 
 	private final void addOutputConsumers() {
-		for (int i = 0; i < this.outputConsumers; i++) {
-			this.outputExecutor.submit(() -> {
-				try {
-					while (true) {
-						if (Thread.currentThread().isInterrupted()) {
-							close();
-							throwShutdownException();
-							break;
-						}
+		if (outputConsumersInitialised.compareAndSet(false, true)) {
+			for (int i = 0; i < this.outputConsumers; i++) {
+				this.outputExecutor.submit(() -> {
+					try {
+						while (true) {
+							if (Thread.currentThread().isInterrupted()) {
+								close();
+								throwShutdownException();
+								break;
+							}
 
-						C toConsume = this.outputQueue.poll(this.queueWaitTime, this.queueWaitUnit);
+							C toConsume = this.outputQueue.poll(this.queueWaitTime, this.queueWaitUnit);
 
-						if (toConsume == null) {
-							// Continue back to the start of the loop, checking
-							// the interrupt status before looking for more
-							// inputs
-							continue;
+							if (toConsume == null) {
+								// Continue back to the start of the loop,
+								// checking the interrupt status before looking
+								// for more inputs
+								continue;
+							}
+							if (toConsume == this.outputSentinel) {
+								// This is our cue to leave
+								break;
+							}
+							this.consumerFunction.accept(toConsume);
 						}
-						if (toConsume == this.outputSentinel) {
-							// This is our cue to leave
-							break;
-						}
-						this.consumerFunction.accept(toConsume);
+					} catch (InterruptedException e) {
+						Thread.currentThread().interrupt();
+						close();
+						throwShutdownException(e);
 					}
-				} catch (InterruptedException e) {
-					Thread.currentThread().interrupt();
-					close();
-					throwShutdownException(e);
-				}
-			});
+				});
+			}
 		}
 	}
 

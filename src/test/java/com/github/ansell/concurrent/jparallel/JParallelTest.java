@@ -114,8 +114,9 @@ public class JParallelTest {
 		Consumer<String> outputFunction = results::add;
 
 		try (JParallel<Integer, String> setup = JParallel.forFunctions(processFunction, outputFunction)
-				.inputProcessors(1).outputConsumers(2).inputBuffer(0).outputBuffer(0).queueCloseRetries(10, 10L)
-				.terminationWaitTime(5, TimeUnit.SECONDS).uncaughtExceptionHandler((t, e) -> {
+				.inputProcessors(1).outputConsumers(2).inputBuffer(0).outputBuffer(0)
+				.queueCloseRetries(10, 10L, TimeUnit.SECONDS).terminationWaitTime(5, TimeUnit.SECONDS)
+				.uncaughtExceptionHandler((t, e) -> {
 				}).threadNameFormat("custom-thread-name-%d").start();) {
 			for (int i = 0; i < count; i++) {
 				setup.add(i);
@@ -616,7 +617,7 @@ public class JParallelTest {
 		};
 
 		thrown.expect(IllegalArgumentException.class);
-		JParallel.forFunctions(processFunction, outputFunction).queueCloseRetries(-1, 0L);
+		JParallel.forFunctions(processFunction, outputFunction).queueCloseRetries(-1, 0L, TimeUnit.NANOSECONDS);
 	}
 
 	/**
@@ -633,7 +634,24 @@ public class JParallelTest {
 		};
 
 		thrown.expect(IllegalArgumentException.class);
-		JParallel.forFunctions(processFunction, outputFunction).queueCloseRetries(0, -1L);
+		JParallel.forFunctions(processFunction, outputFunction).queueCloseRetries(0, -1L, TimeUnit.NANOSECONDS);
+	}
+
+	/**
+	 * Test method for
+	 * {@link com.github.ansell.concurrent.jparallel.JParallel#builder(java.util.concurrent.Callable)}.
+	 */
+	@Test
+	public final void testBuilderInvalidQueueCloseRetrySleepTimeUnit() {
+		Function<Integer, String> processFunction = i -> {
+			throw new RuntimeException("Process function should not be called");
+		};
+		Consumer<String> outputFunction = s -> {
+			throw new RuntimeException("Consume function should not be called");
+		};
+
+		thrown.expect(IllegalArgumentException.class);
+		JParallel.forFunctions(processFunction, outputFunction).queueCloseRetries(0, 1L, null);
 	}
 
 	/**

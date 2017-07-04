@@ -78,6 +78,7 @@ public final class JParallel<P, C> implements AutoCloseable {
 
 	private int queueCloseRetries = 10;
 	private long queueCloseRetrySleep = 5;
+	private TimeUnit queueCloseRetrySleepTimeUnit = TimeUnit.SECONDS;
 
 	private final AtomicBoolean started = new AtomicBoolean(false);
 	private final CountDownLatch startCompleted = new CountDownLatch(1);
@@ -316,10 +317,14 @@ public final class JParallel<P, C> implements AutoCloseable {
 	 * @param queueCloseRetries
 	 *            The number of times to retry
 	 * @param queueCloseRetrySleep
-	 *            The time to sleep between retries, in milliseconds.
+	 *            The time to sleep between retries, in the time units given.
+	 * @param queueCloseRetrySleepTimeUnit
+	 *            The time units used to interpret the queueCloseRetrySleep
+	 *            parameter.
 	 * @return This object, for fluent programming
 	 */
-	public final JParallel<P, C> queueCloseRetries(final int queueCloseRetries, final long queueCloseRetrySleep) {
+	public final JParallel<P, C> queueCloseRetries(final int queueCloseRetries, final long queueCloseRetrySleep,
+			final TimeUnit queueCloseRetrySleepTimeUnit) {
 		checkState();
 
 		if (queueCloseRetries < 0) {
@@ -328,9 +333,13 @@ public final class JParallel<P, C> implements AutoCloseable {
 		if (queueCloseRetrySleep < 0) {
 			throw new IllegalArgumentException("Queue close retry sleep time must be non-negative.");
 		}
+		if (queueCloseRetrySleepTimeUnit == null) {
+			throw new IllegalArgumentException("Queue close retry sleep time unit must not be null");
+		}
 
 		this.queueCloseRetries = queueCloseRetries;
 		this.queueCloseRetrySleep = queueCloseRetrySleep;
+		this.queueCloseRetrySleepTimeUnit = queueCloseRetrySleepTimeUnit;
 		return this;
 	}
 
@@ -453,8 +462,8 @@ public final class JParallel<P, C> implements AutoCloseable {
 					// Add one copy of the sentinel for each processor
 					for (int i = 0; i < this.inputProcessors; i++) {
 						int nextRetryCount = 0;
-						while (!this.inputQueue.offer(this.inputSentinel) && nextRetryCount < this.queueCloseRetries) {
-							Thread.sleep(this.queueCloseRetrySleep);
+						while (!this.inputQueue.offer(this.inputSentinel, this.queueCloseRetrySleep,
+								this.queueCloseRetrySleepTimeUnit) && nextRetryCount < this.queueCloseRetries) {
 							nextRetryCount++;
 						}
 						if (nextRetryCount >= this.queueCloseRetries) {
@@ -464,6 +473,7 @@ public final class JParallel<P, C> implements AutoCloseable {
 							int nextEmergencyRetryCount = 0;
 							while (!this.inputQueue.offer(this.inputSentinel)
 									&& nextEmergencyRetryCount < this.queueCloseRetries) {
+								nextEmergencyRetryCount++;
 								this.inputQueue.clear();
 							}
 						}
@@ -478,9 +488,8 @@ public final class JParallel<P, C> implements AutoCloseable {
 							// Add one copy of the sentinel for each consumer
 							for (int i = 0; i < this.outputConsumers; i++) {
 								int nextRetryCount = 0;
-								while (!this.outputQueue.offer(this.outputSentinel)
-										&& nextRetryCount < this.queueCloseRetries) {
-									Thread.sleep(this.queueCloseRetrySleep);
+								while (!this.outputQueue.offer(this.outputSentinel, this.queueCloseRetrySleep,
+										this.queueCloseRetrySleepTimeUnit) && nextRetryCount < this.queueCloseRetries) {
 									nextRetryCount++;
 								}
 								if (nextRetryCount >= this.queueCloseRetries) {
@@ -490,6 +499,7 @@ public final class JParallel<P, C> implements AutoCloseable {
 									int nextEmergencyRetryCount = 0;
 									while (!this.outputQueue.offer(this.outputSentinel)
 											&& nextEmergencyRetryCount < this.queueCloseRetries) {
+										nextEmergencyRetryCount++;
 										this.outputQueue.clear();
 									}
 								}

@@ -73,10 +73,10 @@ public final class JParallel<P, C> implements AutoCloseable {
 	};
 	private long queueWaitTime = 10;
 	private TimeUnit queueWaitUnit = TimeUnit.SECONDS;
-	private long terminationWaitTime = 1;
-	private TimeUnit terminationWaitUnit = TimeUnit.MINUTES;
+	private long terminationWaitTime = 30;
+	private TimeUnit terminationWaitUnit = TimeUnit.SECONDS;
 
-	private int queueCloseRetries = 10;
+	private int queueCloseRetries = 1;
 	private long queueCloseRetrySleep = 5;
 	private TimeUnit queueCloseRetrySleepTimeUnit = TimeUnit.SECONDS;
 

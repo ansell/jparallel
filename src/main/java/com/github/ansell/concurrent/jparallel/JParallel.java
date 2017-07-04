@@ -38,13 +38,13 @@ import com.google.common.util.concurrent.ThreadFactoryBuilder;
 /**
  * Builder pattern for a multi-producer, multi-consumer queue based parallel
  * processing utility. <br>
- * The configuration methods are not threadsafe, but the {@link #add(Object)} is
- * threadsafe. <br>
+ * The configuration methods are not threadsafe, but the {@link #start()}
+ * {@link #add(Object)} and {@link #close()} methods are all threadsafe
+ * individually. <br>
  * Although there are safeties in the {@link #start()} and {@link #close()}
- * methods to prevent multiple invocations, you should confirm that
- * {@link #start()} is complete before calling {@link #add(Object)} and you
- * should confirm that all {@link #add(Object)} calls are complete before
- * calling {@link #close()}.
+ * methods to prevent the effects of multiple invocations, you should confirm
+ * that all {@link #add(Object)} calls are complete before calling
+ * {@link #close()}.
  * 
  * @author Peter Ansell p_ansell@yahoo.com
  * @param <P>
@@ -56,30 +56,46 @@ public final class JParallel<P, C> implements AutoCloseable {
 
 	private final Logger logger = LoggerFactory.getLogger(this.getClass());
 
+	// Default to either 1 or the number of available processors - 1, whichever
+	// is greater
 	private int inputProcessors = Math.max(1, Runtime.getRuntime().availableProcessors() - 1);
+	// Default presumes that output consuming requires less resources than input
 	private int outputConsumers = 1;
+	// Default queue sizes are both based on the default number of input
+	// processors
 	private int inputQueueSize = inputProcessors * 10;
 	private int outputQueueSize = inputProcessors * 10;
+
+	// Both queues are created when start is called, after the configuration is
+	// complete
 	private BlockingQueue<P> inputQueue = null;
-	private ExecutorService inputExecutor;
-	private Function<P, C> processorFunction;
 	private BlockingQueue<C> outputQueue = null;
+
+	// Both executors are created when start is called, after the configuration
+	// is complete
+	private ExecutorService inputExecutor;
 	private ExecutorService outputExecutor;
+
+	// These functions must be given to the constructor
+	private Function<P, C> processorFunction;
 	private Consumer<C> consumerFunction;
+
+	// Thread configuration for the threads used by the executors
 	private int threadPriority = Thread.NORM_PRIORITY;
 	private String threadNameFormat = "jparallel-thread-%d";
-	private UncaughtExceptionHandler uncaughtExceptionHandler = (t, e) -> {
-		logger.error("Uncaught exception occurred in thread: " + t.getName(), e);
+	private UncaughtExceptionHandler uncaughtExceptionHandler = (nextThread, nextException) -> {
+		logger.error("Uncaught exception occurred in thread: " + nextThread.getName(), nextException);
 	};
+
 	private long queueWaitTime = 10;
 	private TimeUnit queueWaitUnit = TimeUnit.SECONDS;
 	private long terminationWaitTime = 30;
 	private TimeUnit terminationWaitUnit = TimeUnit.SECONDS;
-
 	private int queueCloseRetries = 1;
 	private long queueCloseRetrySleep = 5;
 	private TimeUnit queueCloseRetrySleepTimeUnit = TimeUnit.SECONDS;
 
+	// Tracks the running state
 	private final AtomicBoolean started = new AtomicBoolean(false);
 	private final CountDownLatch startCompleted = new CountDownLatch(1);
 	private final AtomicBoolean closed = new AtomicBoolean(false);
@@ -137,7 +153,7 @@ public final class JParallel<P, C> implements AutoCloseable {
 	 * @return This object, for fluent programming
 	 */
 	public final JParallel<P, C> inputProcessors(final int inputProcessors) {
-		checkState();
+		checkStateBeforeMutator();
 
 		if (inputProcessors < 1) {
 			throw new IllegalArgumentException("Input processor concurrency level must be positive.");
@@ -156,7 +172,7 @@ public final class JParallel<P, C> implements AutoCloseable {
 	 * @return This object, for fluent programming
 	 */
 	public final JParallel<P, C> outputConsumers(final int outputConsumers) {
-		checkState();
+		checkStateBeforeMutator();
 
 		if (outputConsumers < 1) {
 			throw new IllegalArgumentException("Output consumer concurrency level must be positive.");
@@ -175,7 +191,7 @@ public final class JParallel<P, C> implements AutoCloseable {
 	 * @return This object, for fluent programming
 	 */
 	public final JParallel<P, C> inputBuffer(final int inputQueueSize) {
-		checkState();
+		checkStateBeforeMutator();
 
 		if (inputQueueSize < 0) {
 			throw new IllegalArgumentException("Input queue size must be non-negative.");
@@ -194,7 +210,7 @@ public final class JParallel<P, C> implements AutoCloseable {
 	 * @return This object, for fluent programming
 	 */
 	public final JParallel<P, C> outputBuffer(final int outputQueueSize) {
-		checkState();
+		checkStateBeforeMutator();
 
 		if (outputQueueSize < 0) {
 			throw new IllegalArgumentException("Output queue size must be non-negative.");
@@ -214,7 +230,7 @@ public final class JParallel<P, C> implements AutoCloseable {
 	 * @return This object, for fluent programming
 	 */
 	public final JParallel<P, C> threadNameFormat(final String threadNameFormat) {
-		checkState();
+		checkStateBeforeMutator();
 
 		this.threadNameFormat = Objects.requireNonNull(threadNameFormat, "Thread name format must not be null");
 		return this;
@@ -230,7 +246,7 @@ public final class JParallel<P, C> implements AutoCloseable {
 	 * @return This object, for fluent programming
 	 */
 	public final JParallel<P, C> threadPriority(final int threadPriority) {
-		checkState();
+		checkStateBeforeMutator();
 
 		int correctedThreadPriority = threadPriority;
 		if (Math.max(threadPriority, Thread.MIN_PRIORITY) == Thread.MIN_PRIORITY) {
@@ -254,7 +270,7 @@ public final class JParallel<P, C> implements AutoCloseable {
 	 * @return This object, for fluent programming
 	 */
 	public final JParallel<P, C> uncaughtExceptionHandler(final UncaughtExceptionHandler uncaughtExceptionHandler) {
-		checkState();
+		checkStateBeforeMutator();
 
 		this.uncaughtExceptionHandler = Objects.requireNonNull(uncaughtExceptionHandler,
 				"Uncaught exception handler must not be null");
@@ -274,7 +290,7 @@ public final class JParallel<P, C> implements AutoCloseable {
 	 * @return This object, for fluent programming
 	 */
 	public final JParallel<P, C> queueWaitTime(final long queueWaitTime, final TimeUnit queueWaitUnit) {
-		checkState();
+		checkStateBeforeMutator();
 
 		if (queueWaitTime < 0) {
 			throw new IllegalArgumentException("Queue wait time must be non-negative.");
@@ -298,7 +314,7 @@ public final class JParallel<P, C> implements AutoCloseable {
 	 */
 	public final JParallel<P, C> terminationWaitTime(final long terminationWaitTime,
 			final TimeUnit terminationWaitUnit) {
-		checkState();
+		checkStateBeforeMutator();
 
 		if (terminationWaitTime < 0) {
 			throw new IllegalArgumentException("Termination wait time must be non-negative.");
@@ -325,7 +341,7 @@ public final class JParallel<P, C> implements AutoCloseable {
 	 */
 	public final JParallel<P, C> queueCloseRetries(final int queueCloseRetries, final long queueCloseRetrySleep,
 			final TimeUnit queueCloseRetrySleepTimeUnit) {
-		checkState();
+		checkStateBeforeMutator();
 
 		if (queueCloseRetries < 0) {
 			throw new IllegalArgumentException("Queue close retries must be non-negative.");
@@ -390,7 +406,7 @@ public final class JParallel<P, C> implements AutoCloseable {
 	 * @throws IllegalStateException
 	 *             If the object has been either closed or started.
 	 */
-	private final void checkState() {
+	private final void checkStateBeforeMutator() {
 		if (this.closed.get()) {
 			throw new IllegalStateException("Already closed");
 		}
@@ -421,7 +437,8 @@ public final class JParallel<P, C> implements AutoCloseable {
 			throw new IllegalStateException("Already closed");
 		}
 		if (!this.started.get()) {
-			throw new IllegalStateException("Start was not called");
+			// Trigger start ourselves if it was not called already
+			start();
 		}
 		Objects.requireNonNull(toProcess, "Processing items cannot be null");
 		try {

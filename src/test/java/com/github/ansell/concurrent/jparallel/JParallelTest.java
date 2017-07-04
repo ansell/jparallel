@@ -403,17 +403,21 @@ public class JParallelTest {
 	 * {@link com.github.ansell.concurrent.jparallel.JParallel#builder(java.util.concurrent.Callable)}.
 	 */
 	@Test
-	public final void testBuilderStateAddBeforeStart() {
-		Function<Integer, String> processFunction = i -> {
-			throw new RuntimeException("Process function should not be called");
-		};
-		Consumer<String> outputFunction = s -> {
-			throw new RuntimeException("Consume function should not be called");
-		};
+	public final void testBuilderStateAddBeforeStart() throws Exception {
+		Function<Integer, String> processFunction = i -> Integer.toHexString(i);
+		Queue<String> results = new ArrayBlockingQueue<>(count);
+		Consumer<String> outputFunction = results::add;
 
 		JParallel<Integer, String> jParallel = JParallel.forFunctions(processFunction, outputFunction);
-		thrown.expect(IllegalStateException.class);
+		// Ensure that we don't need to call start explicitly for add to be
+		// successfully called
 		jParallel.add(0);
+
+		// Sleep to allow asynchronous processing to proceed
+		Thread.sleep(100);
+
+		assertEquals(1, results.size());
+		assertTrue(results.contains("0"));
 	}
 
 	/**

@@ -463,7 +463,8 @@ public final class JParallel<P, C> implements AutoCloseable {
 					for (int i = 0; i < this.inputProcessors; i++) {
 						int nextRetryCount = 0;
 						while (!this.inputQueue.offer(this.inputSentinel, this.queueCloseRetrySleep,
-								this.queueCloseRetrySleepTimeUnit) && nextRetryCount < this.queueCloseRetries) {
+								this.queueCloseRetrySleepTimeUnit) && !Thread.currentThread().isInterrupted()
+								&& nextRetryCount < this.queueCloseRetries) {
 							nextRetryCount++;
 						}
 						if (nextRetryCount >= this.queueCloseRetries) {
@@ -489,7 +490,8 @@ public final class JParallel<P, C> implements AutoCloseable {
 							for (int i = 0; i < this.outputConsumers; i++) {
 								int nextRetryCount = 0;
 								while (!this.outputQueue.offer(this.outputSentinel, this.queueCloseRetrySleep,
-										this.queueCloseRetrySleepTimeUnit) && nextRetryCount < this.queueCloseRetries) {
+										this.queueCloseRetrySleepTimeUnit) && !Thread.currentThread().isInterrupted()
+										&& nextRetryCount < this.queueCloseRetries) {
 									nextRetryCount++;
 								}
 								if (nextRetryCount >= this.queueCloseRetries) {

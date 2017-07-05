@@ -295,6 +295,42 @@ public final class JParallel<P, C> implements AutoCloseable {
 	}
 
 	/**
+	 * Sets a {@link Consumer} to use to responding to cases where the input
+	 * queue was unable to accept an item due to limited space.
+	 * 
+	 * @param inputQueueFailureFunction
+	 *            A consumer that takes input items which were unable to be
+	 *            processed due to limited space.
+	 * @return This object, for fluent programming
+	 */
+	public final JParallel<P, C> inputQueueFailureFunction(final Consumer<P> inputQueueFailureFunction) {
+		checkStateBeforeMutator();
+
+		this.inputQueueFailureFunction = Objects.requireNonNull(inputQueueFailureFunction,
+				"Input queue failure function must not be null");
+
+		return this;
+	}
+
+	/**
+	 * Sets a {@link Consumer} to use to responding to cases where the output
+	 * queue was unable to accept an item due to limited space.
+	 * 
+	 * @param outputQueueFailureFunction
+	 *            A consumer that takes output items which were unable to be
+	 *            processed due to limited space.
+	 * @return This object, for fluent programming
+	 */
+	public final JParallel<P, C> outputQueueFailureFunction(final Consumer<C> outputQueueFailureFunction) {
+		checkStateBeforeMutator();
+
+		this.outputQueueFailureFunction = Objects.requireNonNull(outputQueueFailureFunction,
+				"Output queue failure function must not be null");
+
+		return this;
+	}
+
+	/**
 	 * The amount of time to wait for space in the input queue, during
 	 * {@link #add(Object)} before failing.
 	 * 
@@ -409,6 +445,9 @@ public final class JParallel<P, C> implements AutoCloseable {
 	 * @return This object, for fluent programming
 	 */
 	public final JParallel<P, C> start() {
+		if (this.closed.get()) {
+			throw new IllegalStateException("Cannot start, as we have already been closed.");
+		}
 		if (this.started.compareAndSet(false, true)) {
 			try {
 				if (this.logger.isInfoEnabled()) {
@@ -515,97 +554,101 @@ public final class JParallel<P, C> implements AutoCloseable {
 
 	@Override
 	public final void close() {
-		if (!this.started.get()) {
-			throw new IllegalStateException("Start was not called");
-		}
 		if (this.closed.compareAndSet(false, true)) {
-			try {
+			if (this.started.get()) {
 				try {
-					// Add one copy of the sentinel for each processor
-					for (int i = 0; i < this.inputProcessors; i++) {
-						int nextRetryCount = 0;
-						while (!this.inputQueue.offer(this.inputSentinel, this.queueCloseRetrySleep,
-								this.queueCloseRetrySleepTimeUnit) && !Thread.currentThread().isInterrupted()
-								&& nextRetryCount < this.queueCloseRetries) {
-							nextRetryCount++;
-						}
-						if (nextRetryCount >= this.queueCloseRetries) {
-							this.logger.warn("Failed to add sentinel to input queue after {} retries",
-									this.queueCloseRetries);
-							this.inputQueue.clear();
-							int nextEmergencyRetryCount = 0;
-							while (!this.inputQueue.offer(this.inputSentinel)
-									&& nextEmergencyRetryCount < this.queueCloseRetries) {
-								nextEmergencyRetryCount++;
+					// Wait for starting to complete before closing
+					this.startCompleted.await();
+					try {
+						// Add one copy of the sentinel for each processor
+						for (int i = 0; i < this.inputProcessors; i++) {
+							int nextRetryCount = 0;
+							while (!this.inputQueue.offer(this.inputSentinel, this.queueCloseRetrySleep,
+									this.queueCloseRetrySleepTimeUnit) && !Thread.currentThread().isInterrupted()
+									&& nextRetryCount < this.queueCloseRetries) {
+								nextRetryCount++;
+							}
+							if (nextRetryCount >= this.queueCloseRetries) {
+								this.logger.warn("Failed to add sentinel to input queue after {} retries",
+										this.queueCloseRetries);
 								this.inputQueue.clear();
+								int nextEmergencyRetryCount = 0;
+								while (!this.inputQueue.offer(this.inputSentinel)
+										&& nextEmergencyRetryCount < this.queueCloseRetries) {
+									nextEmergencyRetryCount++;
+									this.inputQueue.clear();
+								}
 							}
 						}
-					}
-				} finally {
-					try {
-						// Wait for the input processors to complete normally
-						this.inputExecutor.shutdown();
-						this.inputExecutor.awaitTermination(this.terminationWaitTime, this.terminationWaitUnit);
 					} finally {
 						try {
-							// Add one copy of the sentinel for each consumer
-							for (int i = 0; i < this.outputConsumers; i++) {
-								int nextRetryCount = 0;
-								while (!this.outputQueue.offer(this.outputSentinel, this.queueCloseRetrySleep,
-										this.queueCloseRetrySleepTimeUnit) && !Thread.currentThread().isInterrupted()
-										&& nextRetryCount < this.queueCloseRetries) {
-									nextRetryCount++;
-								}
-								if (nextRetryCount >= this.queueCloseRetries) {
-									this.logger.warn("Failed to add sentinel to output queue after {} retries",
-											this.queueCloseRetries);
-									this.inputQueue.clear();
-									int nextEmergencyRetryCount = 0;
-									while (!this.outputQueue.offer(this.outputSentinel)
-											&& nextEmergencyRetryCount < this.queueCloseRetries) {
-										nextEmergencyRetryCount++;
-										this.outputQueue.clear();
-									}
-								}
-							}
+							// Wait for the input processors to complete
+							// normally
+							this.inputExecutor.shutdown();
+							this.inputExecutor.awaitTermination(this.terminationWaitTime, this.terminationWaitUnit);
 						} finally {
 							try {
-								// Wait for the output consumers to complete
-								// normally
-								this.outputExecutor.shutdown();
-								this.outputExecutor.awaitTermination(this.terminationWaitTime,
-										this.terminationWaitUnit);
-							} finally {
-								try {
-									// If input termination didn't occur
-									// normally, hard shutdown
-									if (!this.inputExecutor.isTerminated()) {
-										List<Runnable> shutdownNow = this.inputExecutor.shutdownNow();
-										if (!shutdownNow.isEmpty()) {
-											throwShutdownException(
-													new RuntimeException("There were " + shutdownNow.size()
-															+ " input executors that failed to shutdown in time."));
+								// Add one copy of the sentinel for each
+								// consumer
+								for (int i = 0; i < this.outputConsumers; i++) {
+									int nextRetryCount = 0;
+									while (!this.outputQueue.offer(this.outputSentinel, this.queueCloseRetrySleep,
+											this.queueCloseRetrySleepTimeUnit)
+											&& !Thread.currentThread().isInterrupted()
+											&& nextRetryCount < this.queueCloseRetries) {
+										nextRetryCount++;
+									}
+									if (nextRetryCount >= this.queueCloseRetries) {
+										this.logger.warn("Failed to add sentinel to output queue after {} retries",
+												this.queueCloseRetries);
+										this.inputQueue.clear();
+										int nextEmergencyRetryCount = 0;
+										while (!this.outputQueue.offer(this.outputSentinel)
+												&& nextEmergencyRetryCount < this.queueCloseRetries) {
+											nextEmergencyRetryCount++;
+											this.outputQueue.clear();
 										}
 									}
+								}
+							} finally {
+								try {
+									// Wait for the output consumers to complete
+									// normally
+									this.outputExecutor.shutdown();
+									this.outputExecutor.awaitTermination(this.terminationWaitTime,
+											this.terminationWaitUnit);
 								} finally {
-									// If output termination didn't occur
-									// normally, hard shutdown
-									if (!this.outputExecutor.isTerminated()) {
-										List<Runnable> shutdownNow = this.outputExecutor.shutdownNow();
-										if (!shutdownNow.isEmpty()) {
-											throwShutdownException(
-													new RuntimeException("There were " + shutdownNow.size()
-															+ " output executors that failed to shutdown in time."));
+									try {
+										// If input termination didn't occur
+										// normally, hard shutdown
+										if (!this.inputExecutor.isTerminated()) {
+											List<Runnable> shutdownNow = this.inputExecutor.shutdownNow();
+											if (!shutdownNow.isEmpty()) {
+												throwShutdownException(
+														new RuntimeException("There were " + shutdownNow.size()
+																+ " input executors that failed to shutdown in time."));
+											}
+										}
+									} finally {
+										// If output termination didn't occur
+										// normally, hard shutdown
+										if (!this.outputExecutor.isTerminated()) {
+											List<Runnable> shutdownNow = this.outputExecutor.shutdownNow();
+											if (!shutdownNow.isEmpty()) {
+												throwShutdownException(new RuntimeException("There were "
+														+ shutdownNow.size()
+														+ " output executors that failed to shutdown in time."));
+											}
 										}
 									}
 								}
 							}
 						}
 					}
+				} catch (InterruptedException e) {
+					Thread.currentThread().interrupt();
+					throwShutdownException(e);
 				}
-			} catch (InterruptedException e) {
-				Thread.currentThread().interrupt();
-				throwShutdownException(e);
 			}
 		}
 	}

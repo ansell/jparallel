@@ -301,7 +301,8 @@ public class JParallelTest {
 			throw new RuntimeException("Consume function should not be called");
 		};
 
-		thrown.expect(IllegalStateException.class);
+		// Should silently succeed, based on recognising start was not called
+		// and therefore there is no state to cleanup
 		JParallel.forFunctions(processFunction, outputFunction).close();
 	}
 
@@ -346,6 +347,21 @@ public class JParallelTest {
 		jParallel.close();
 		thrown.expect(IllegalStateException.class);
 		jParallel.add(0);
+	}
+
+	@Test
+	public final void testStateStartAfterClose() {
+		Function<Integer, String> processFunction = i -> {
+			throw new RuntimeException("Process function should not be called");
+		};
+		Consumer<String> outputFunction = s -> {
+			throw new RuntimeException("Consume function should not be called");
+		};
+
+		JParallel<Integer, String> jParallel = JParallel.forFunctions(processFunction, outputFunction);
+		jParallel.close();
+		thrown.expect(IllegalStateException.class);
+		jParallel.start();
 	}
 
 	@Test
@@ -455,6 +471,32 @@ public class JParallelTest {
 
 		thrown.expect(NullPointerException.class);
 		JParallel.forFunctions(processFunction, outputFunction).uncaughtExceptionHandler(null);
+	}
+
+	@Test
+	public final void testInvalidInputQueueFailureFunction() {
+		Function<Integer, String> processFunction = i -> {
+			throw new RuntimeException("Process function should not be called");
+		};
+		Consumer<String> outputFunction = s -> {
+			throw new RuntimeException("Consume function should not be called");
+		};
+
+		thrown.expect(NullPointerException.class);
+		JParallel.forFunctions(processFunction, outputFunction).inputQueueFailureFunction(null);
+	}
+
+	@Test
+	public final void testInvalidOutputQueueFailureFunction() {
+		Function<Integer, String> processFunction = i -> {
+			throw new RuntimeException("Process function should not be called");
+		};
+		Consumer<String> outputFunction = s -> {
+			throw new RuntimeException("Consume function should not be called");
+		};
+
+		thrown.expect(NullPointerException.class);
+		JParallel.forFunctions(processFunction, outputFunction).outputQueueFailureFunction(null);
 	}
 
 	@Test

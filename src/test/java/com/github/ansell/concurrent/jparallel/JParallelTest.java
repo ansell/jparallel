@@ -833,7 +833,6 @@ public class JParallelTest {
 					.outputConsumers(1).start();) {
 				for (int i = 0; i < count; i++) {
 					setup.add(i);
-					Thread.currentThread().interrupt();
 				}
 			}
 		});
@@ -850,5 +849,6 @@ public class JParallelTest {
 		assertFalse(
 				"There should have been at least 1 item making it through to the results from the heavily restricted queue",
 				results.isEmpty());
+		assertFalse("No interrupts were expected during the process function", interruptFailure.get());
 	}
 }

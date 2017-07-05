@@ -171,7 +171,7 @@ public class JParallelTest {
 		Consumer<String> outputFunction = results::add;
 
 		try (JParallel<Integer, String> setup = JParallel.forFunctions(processFunction, outputFunction)
-				.inputQueueWaitTime(0, TimeUnit.MILLISECONDS).outputBuffer(1).start();) {
+				.outputQueueWaitTime(0, TimeUnit.MILLISECONDS).outputBuffer(1).start();) {
 			for (int i = 0; i < count; i++) {
 				setup.add(i);
 			}
@@ -191,7 +191,7 @@ public class JParallelTest {
 		Consumer<String> outputFunction = results::add;
 
 		try (JParallel<Integer, String> setup = JParallel.forFunctions(processFunction, outputFunction)
-				.inputQueueWaitTime(0, TimeUnit.MILLISECONDS).outputBuffer(0).start();) {
+				.outputQueueWaitTime(0, TimeUnit.MILLISECONDS).outputBuffer(0).start();) {
 			for (int i = 0; i < count; i++) {
 				setup.add(i);
 			}

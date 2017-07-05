@@ -80,6 +80,12 @@ public final class JParallel<P, C> implements AutoCloseable {
 	private Function<P, C> processorFunction;
 	private Consumer<C> consumerFunction;
 
+	// These functions are overridable, but default to being logged
+	private Consumer<P> inputQueueFailureFunction = p -> logger
+			.error("Input queue failed to accept offered item within time allowed.");
+	private Consumer<C> outputQueueFailureFunction = c -> logger
+			.error("Output queue failed to accept offered item within time allowed.");
+
 	// Thread configuration for the threads used by the executors
 	private int threadPriority = Thread.NORM_PRIORITY;
 	private String threadNameFormat = "jparallel-thread-%d";
@@ -92,10 +98,10 @@ public final class JParallel<P, C> implements AutoCloseable {
 
 	private long outputQueueWaitTime = 20;
 	private TimeUnit outputQueueWaitUnit = TimeUnit.SECONDS;
-	
+
 	private long terminationWaitTime = 30;
 	private TimeUnit terminationWaitUnit = TimeUnit.SECONDS;
-	
+
 	private int queueCloseRetries = 1;
 	private long queueCloseRetrySleep = 5;
 	private TimeUnit queueCloseRetrySleepTimeUnit = TimeUnit.SECONDS;
@@ -307,7 +313,8 @@ public final class JParallel<P, C> implements AutoCloseable {
 		}
 
 		this.inputQueueWaitTime = inputQueueWaitTime;
-		this.inputQueueWaitUnit = Objects.requireNonNull(inputQueueWaitUnit, "Input queue wait time unit must not be null");
+		this.inputQueueWaitUnit = Objects.requireNonNull(inputQueueWaitUnit,
+				"Input queue wait time unit must not be null");
 		return this;
 	}
 
@@ -331,7 +338,8 @@ public final class JParallel<P, C> implements AutoCloseable {
 		}
 
 		this.outputQueueWaitTime = outputQueueWaitTime;
-		this.outputQueueWaitUnit = Objects.requireNonNull(outputQueueWaitUnit, "Output queue wait time unit must not be null");
+		this.outputQueueWaitUnit = Objects.requireNonNull(outputQueueWaitUnit,
+				"Output queue wait time unit must not be null");
 		return this;
 	}
 
@@ -485,8 +493,7 @@ public final class JParallel<P, C> implements AutoCloseable {
 			if (this.inputQueueWaitTime > 0) {
 				boolean offer = this.inputQueue.offer(toProcess, this.inputQueueWaitTime, this.inputQueueWaitUnit);
 				if (!offer) {
-					this.logger.error("Input queue failed to accept offered item within time allowed: {} {}",
-							this.inputQueueWaitTime, this.inputQueueWaitUnit);
+					inputQueueFailureFunction.accept(toProcess);
 				}
 			} else if (this.inputQueueSize > 0) {
 				this.inputQueue.put(toProcess);
@@ -639,14 +646,16 @@ public final class JParallel<P, C> implements AutoCloseable {
 									boolean offer = this.outputQueue.offer(toConsume, this.outputQueueWaitTime,
 											this.outputQueueWaitUnit);
 									if (!offer) {
-										this.logger.error(
-												"Output queue failed to accept offered item within time allowed: {} {}",
-												this.outputQueueWaitTime, this.outputQueueWaitUnit);
+										outputQueueFailureFunction.accept(toConsume);
 									}
 								} else if (this.outputQueueSize > 0) {
 									this.outputQueue.put(toConsume);
 								} else {
-									this.outputQueue.add(toConsume);
+									try {
+										this.outputQueue.add(toConsume);
+									} catch (IllegalStateException e) {
+										outputQueueFailureFunction.accept(toConsume);
+									}
 								}
 							}
 						}

@@ -745,4 +745,50 @@ public class JParallelTest {
 				results.isEmpty());
 		assertFalse("No interrupts were expected during the process function", interruptFailure.get());
 	}
+
+	@Test
+	public final void testOutputQueueFailedToAcceptTimeout() throws Exception {
+		CountDownLatch testLatch = new CountDownLatch(1);
+		AtomicBoolean interruptFailure = new AtomicBoolean(false);
+		// Indefinitely wait in the processor to test the side effects of adding
+		// multiple items to a very short queueWaitTime queue
+		Function<Integer, String> processFunction = i -> {
+			return Integer.toHexString(i);
+		};
+		Queue<String> results = new ArrayBlockingQueue<>(count);
+		Consumer<String> outputFunction = s -> {
+			try {
+				testLatch.await();
+			} catch (InterruptedException e) {
+				interruptFailure.set(true);
+				e.printStackTrace();
+			}
+			results.add(s);
+		};
+
+		Thread testThread = new Thread(() -> {
+			try (JParallel<Integer, String> setup = JParallel.forFunctions(processFunction, outputFunction)
+					.outputQueueWaitTime(1, TimeUnit.NANOSECONDS).inputBuffer(10).inputProcessors(10).outputBuffer(1)
+					.outputConsumers(1).start();) {
+				for (int i = 0; i < count; i++) {
+					setup.add(i);
+				}
+			}
+		});
+		assertEquals("Results size was not correct before running test", 0, results.size());
+		testThread.start();
+		assertEquals("Results size was not correct after starting test", 0, results.size());
+		Thread.sleep(1000);
+		assertEquals("Results size was not correct after sleep", 0, results.size());
+		testLatch.countDown();
+		Thread.sleep(1000);
+		// The output of this test is uncertain, other than that we always
+		// expect at least 1 item to make it through, given at least one makes
+		// it past the queue wait time and should trigger the processor
+		assertFalse(
+				"There should have been at least 1 item making it through to the results from the heavily restricted queue",
+				results.isEmpty());
+		assertFalse("No interrupts were expected during the process function", interruptFailure.get());
+	}
+
 }

@@ -91,6 +91,8 @@ public class ResetCountDownLatchTest {
 		assertTrue(threadInterruptSuccess.get());
 		assertFalse(threadInterruptFail.get());
 		assertTrue(threadNormalSuccess.get());
+
+		assertTrue("The toString representation should be non-empty", testLatch.toString().length() > 0);
 	}
 
 	@Test

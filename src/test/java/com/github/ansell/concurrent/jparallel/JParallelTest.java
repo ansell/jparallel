@@ -82,10 +82,6 @@ public class JParallelTest {
 		assertEquals(count, uniqueResults.size());
 	}
 
-	/**
-	 * Test method for
-	 * {@link com.github.ansell.concurrent.jparallel.JParallel#builder(java.util.concurrent.Callable)}.
-	 */
 	@Test
 	public final void testDefaults() {
 		Function<Integer, String> processFunction = i -> Integer.toHexString(i);
@@ -105,10 +101,6 @@ public class JParallelTest {
 		assertEquals(count, uniqueResults.size());
 	}
 
-	/**
-	 * Test method for
-	 * {@link com.github.ansell.concurrent.jparallel.JParallel#builder(java.util.concurrent.Callable)}.
-	 */
 	@Test
 	public final void testCustom() {
 		Function<Integer, String> processFunction = i -> Integer.toHexString(i);
@@ -132,10 +124,6 @@ public class JParallelTest {
 		assertEquals(count, uniqueResults.size());
 	}
 
-	/**
-	 * Test method for
-	 * {@link com.github.ansell.concurrent.jparallel.JParallel#builder(java.util.concurrent.Callable)}.
-	 */
 	@Test
 	public final void testInputQueueWaitZeroQueueSizeNonZero() {
 		Function<Integer, String> processFunction = i -> Integer.toHexString(i);
@@ -156,10 +144,6 @@ public class JParallelTest {
 		assertEquals(count, uniqueResults.size());
 	}
 
-	/**
-	 * Test method for
-	 * {@link com.github.ansell.concurrent.jparallel.JParallel#builder(java.util.concurrent.Callable)}.
-	 */
 	@Test
 	public final void testInputQueueWaitZeroQueueSizeZero() {
 		Function<Integer, String> processFunction = i -> Integer.toHexString(i);
@@ -180,10 +164,6 @@ public class JParallelTest {
 		assertEquals(count, uniqueResults.size());
 	}
 
-	/**
-	 * Test method for
-	 * {@link com.github.ansell.concurrent.jparallel.JParallel#builder(java.util.concurrent.Callable)}.
-	 */
 	@Test
 	public final void testOutputQueueWaitZeroQueueSizeNonZero() {
 		Function<Integer, String> processFunction = i -> Integer.toHexString(i);
@@ -204,10 +184,6 @@ public class JParallelTest {
 		assertEquals(count, uniqueResults.size());
 	}
 
-	/**
-	 * Test method for
-	 * {@link com.github.ansell.concurrent.jparallel.JParallel#builder(java.util.concurrent.Callable)}.
-	 */
 	@Test
 	public final void testOutputQueueWaitZeroQueueSizeZero() {
 		Function<Integer, String> processFunction = i -> Integer.toHexString(i);
@@ -228,10 +204,6 @@ public class JParallelTest {
 		assertEquals(count, uniqueResults.size());
 	}
 
-	/**
-	 * Test method for
-	 * {@link com.github.ansell.concurrent.jparallel.JParallel#builder(java.util.concurrent.Callable)}.
-	 */
 	@Test
 	public final void testWithSerial() {
 
@@ -284,10 +256,6 @@ public class JParallelTest {
 		assertEquals(count, uniqueSerialResults.size());
 	}
 
-	/**
-	 * Test method for
-	 * {@link com.github.ansell.concurrent.jparallel.JParallel#builder(java.util.concurrent.Callable)}.
-	 */
 	@Test
 	public final void testDefaultUncaughtExceptionHandlerInput() {
 		Function<Integer, String> processFunction = i -> {
@@ -306,10 +274,6 @@ public class JParallelTest {
 		assertEquals(0, results.size());
 	}
 
-	/**
-	 * Test method for
-	 * {@link com.github.ansell.concurrent.jparallel.JParallel#builder(java.util.concurrent.Callable)}.
-	 */
 	@Test
 	public final void testDefaultUncaughtExceptionHandlerOutput() {
 		Function<Integer, String> processFunction = i -> Integer.toHexString(i);
@@ -328,10 +292,6 @@ public class JParallelTest {
 		assertEquals(0, results.size());
 	}
 
-	/**
-	 * Test method for
-	 * {@link com.github.ansell.concurrent.jparallel.JParallel#builder(java.util.concurrent.Callable)}.
-	 */
 	@Test
 	public final void testStateCloseBeforeStart() {
 		Function<Integer, String> processFunction = i -> {
@@ -345,10 +305,6 @@ public class JParallelTest {
 		JParallel.forFunctions(processFunction, outputFunction).close();
 	}
 
-	/**
-	 * Test method for
-	 * {@link com.github.ansell.concurrent.jparallel.JParallel#builder(java.util.concurrent.Callable)}.
-	 */
 	@Test
 	public final void testStateConfigAfterStart() {
 		Function<Integer, String> processFunction = i -> {
@@ -362,10 +318,6 @@ public class JParallelTest {
 		JParallel.forFunctions(processFunction, outputFunction).start().inputBuffer(0);
 	}
 
-	/**
-	 * Test method for
-	 * {@link com.github.ansell.concurrent.jparallel.JParallel#builder(java.util.concurrent.Callable)}.
-	 */
 	@Test
 	public final void testStateConfigAfterClose() {
 		Function<Integer, String> processFunction = i -> {
@@ -381,10 +333,6 @@ public class JParallelTest {
 		jParallel.inputBuffer(0);
 	}
 
-	/**
-	 * Test method for
-	 * {@link com.github.ansell.concurrent.jparallel.JParallel#builder(java.util.concurrent.Callable)}.
-	 */
 	@Test
 	public final void testStateAddAfterClose() {
 		Function<Integer, String> processFunction = i -> {
@@ -400,10 +348,6 @@ public class JParallelTest {
 		jParallel.add(0);
 	}
 
-	/**
-	 * Test method for
-	 * {@link com.github.ansell.concurrent.jparallel.JParallel#builder(java.util.concurrent.Callable)}.
-	 */
 	@Test
 	public final void testStateAddBeforeStart() throws Exception {
 		Function<Integer, String> processFunction = i -> Integer.toHexString(i);
@@ -422,10 +366,6 @@ public class JParallelTest {
 		assertTrue(results.contains("0"));
 	}
 
-	/**
-	 * Test method for
-	 * {@link com.github.ansell.concurrent.jparallel.JParallel#builder(java.util.concurrent.Callable)}.
-	 */
 	@Test
 	public final void testInvalidInputProcessors() {
 		Function<Integer, String> processFunction = i -> {
@@ -439,10 +379,6 @@ public class JParallelTest {
 		JParallel.forFunctions(processFunction, outputFunction).inputProcessors(0);
 	}
 
-	/**
-	 * Test method for
-	 * {@link com.github.ansell.concurrent.jparallel.JParallel#builder(java.util.concurrent.Callable)}.
-	 */
 	@Test
 	public final void testInvalidOutputConsumers() {
 		Function<Integer, String> processFunction = i -> {
@@ -456,10 +392,6 @@ public class JParallelTest {
 		JParallel.forFunctions(processFunction, outputFunction).outputConsumers(0);
 	}
 
-	/**
-	 * Test method for
-	 * {@link com.github.ansell.concurrent.jparallel.JParallel#builder(java.util.concurrent.Callable)}.
-	 */
 	@Test
 	public final void testInvalidInputBuffer() {
 		Function<Integer, String> processFunction = i -> {
@@ -473,10 +405,6 @@ public class JParallelTest {
 		JParallel.forFunctions(processFunction, outputFunction).inputBuffer(-1);
 	}
 
-	/**
-	 * Test method for
-	 * {@link com.github.ansell.concurrent.jparallel.JParallel#builder(java.util.concurrent.Callable)}.
-	 */
 	@Test
 	public final void testInvalidOutputBuffer() {
 		Function<Integer, String> processFunction = i -> {
@@ -490,10 +418,6 @@ public class JParallelTest {
 		JParallel.forFunctions(processFunction, outputFunction).outputBuffer(-1);
 	}
 
-	/**
-	 * Test method for
-	 * {@link com.github.ansell.concurrent.jparallel.JParallel#builder(java.util.concurrent.Callable)}.
-	 */
 	@Test
 	public final void testInvalidThreadNameFormat() {
 		Function<Integer, String> processFunction = i -> {
@@ -507,10 +431,6 @@ public class JParallelTest {
 		JParallel.forFunctions(processFunction, outputFunction).threadNameFormat(null);
 	}
 
-	/**
-	 * Test method for
-	 * {@link com.github.ansell.concurrent.jparallel.JParallel#builder(java.util.concurrent.Callable)}.
-	 */
 	@Test
 	public final void testInvalidThreadPriority() {
 		Function<Integer, String> processFunction = i -> {
@@ -524,10 +444,6 @@ public class JParallelTest {
 		JParallel.forFunctions(processFunction, outputFunction).threadPriority(Thread.MAX_PRIORITY + 1).start().close();
 	}
 
-	/**
-	 * Test method for
-	 * {@link com.github.ansell.concurrent.jparallel.JParallel#builder(java.util.concurrent.Callable)}.
-	 */
 	@Test
 	public final void testInvalidUncaughtExceptionHandler() {
 		Function<Integer, String> processFunction = i -> {
@@ -541,12 +457,8 @@ public class JParallelTest {
 		JParallel.forFunctions(processFunction, outputFunction).uncaughtExceptionHandler(null);
 	}
 
-	/**
-	 * Test method for
-	 * {@link com.github.ansell.concurrent.jparallel.JParallel#builder(java.util.concurrent.Callable)}.
-	 */
 	@Test
-	public final void testInvalidQueueWaitTime() {
+	public final void testInvalidInputQueueWaitTime() {
 		Function<Integer, String> processFunction = i -> {
 			throw new RuntimeException("Process function should not be called");
 		};
@@ -558,12 +470,8 @@ public class JParallelTest {
 		JParallel.forFunctions(processFunction, outputFunction).inputQueueWaitTime(-1, TimeUnit.MILLISECONDS);
 	}
 
-	/**
-	 * Test method for
-	 * {@link com.github.ansell.concurrent.jparallel.JParallel#builder(java.util.concurrent.Callable)}.
-	 */
 	@Test
-	public final void testInvalidQueueWaitTimeUnit() {
+	public final void testInvalidInputQueueWaitTimeUnit() {
 		Function<Integer, String> processFunction = i -> {
 			throw new RuntimeException("Process function should not be called");
 		};
@@ -575,10 +483,32 @@ public class JParallelTest {
 		JParallel.forFunctions(processFunction, outputFunction).inputQueueWaitTime(0, null);
 	}
 
-	/**
-	 * Test method for
-	 * {@link com.github.ansell.concurrent.jparallel.JParallel#builder(java.util.concurrent.Callable)}.
-	 */
+	@Test
+	public final void testInvalidOutputQueueWaitTime() {
+		Function<Integer, String> processFunction = i -> {
+			throw new RuntimeException("Process function should not be called");
+		};
+		Consumer<String> outputFunction = s -> {
+			throw new RuntimeException("Consume function should not be called");
+		};
+
+		thrown.expect(IllegalArgumentException.class);
+		JParallel.forFunctions(processFunction, outputFunction).outputQueueWaitTime(-1, TimeUnit.MILLISECONDS);
+	}
+
+	@Test
+	public final void testInvalidOutputQueueWaitTimeUnit() {
+		Function<Integer, String> processFunction = i -> {
+			throw new RuntimeException("Process function should not be called");
+		};
+		Consumer<String> outputFunction = s -> {
+			throw new RuntimeException("Consume function should not be called");
+		};
+
+		thrown.expect(NullPointerException.class);
+		JParallel.forFunctions(processFunction, outputFunction).outputQueueWaitTime(0, null);
+	}
+
 	@Test
 	public final void testInvalidTerminationWaitTime() {
 		Function<Integer, String> processFunction = i -> {
@@ -592,10 +522,6 @@ public class JParallelTest {
 		JParallel.forFunctions(processFunction, outputFunction).terminationWaitTime(-1, TimeUnit.MILLISECONDS);
 	}
 
-	/**
-	 * Test method for
-	 * {@link com.github.ansell.concurrent.jparallel.JParallel#builder(java.util.concurrent.Callable)}.
-	 */
 	@Test
 	public final void testInvalidTerminationWaitTimeUnit() {
 		Function<Integer, String> processFunction = i -> {
@@ -609,10 +535,6 @@ public class JParallelTest {
 		JParallel.forFunctions(processFunction, outputFunction).terminationWaitTime(0, null);
 	}
 
-	/**
-	 * Test method for
-	 * {@link com.github.ansell.concurrent.jparallel.JParallel#builder(java.util.concurrent.Callable)}.
-	 */
 	@Test
 	public final void testInvalidQueueCloseRetries() {
 		Function<Integer, String> processFunction = i -> {
@@ -626,10 +548,6 @@ public class JParallelTest {
 		JParallel.forFunctions(processFunction, outputFunction).queueCloseRetries(-1, 0L, TimeUnit.NANOSECONDS);
 	}
 
-	/**
-	 * Test method for
-	 * {@link com.github.ansell.concurrent.jparallel.JParallel#builder(java.util.concurrent.Callable)}.
-	 */
 	@Test
 	public final void testInvalidQueueCloseRetrySleep() {
 		Function<Integer, String> processFunction = i -> {
@@ -643,10 +561,6 @@ public class JParallelTest {
 		JParallel.forFunctions(processFunction, outputFunction).queueCloseRetries(0, -1L, TimeUnit.NANOSECONDS);
 	}
 
-	/**
-	 * Test method for
-	 * {@link com.github.ansell.concurrent.jparallel.JParallel#builder(java.util.concurrent.Callable)}.
-	 */
 	@Test
 	public final void testInvalidQueueCloseRetrySleepTimeUnit() {
 		Function<Integer, String> processFunction = i -> {
@@ -660,10 +574,6 @@ public class JParallelTest {
 		JParallel.forFunctions(processFunction, outputFunction).queueCloseRetries(0, 1L, null);
 	}
 
-	/**
-	 * Test method for
-	 * {@link com.github.ansell.concurrent.jparallel.JParallel#builder(java.util.concurrent.Callable)}.
-	 */
 	@Test
 	public final void testWaitAndInterruptDuringAddProcess() throws Exception {
 		CountDownLatch testLatch = new CountDownLatch(1);
@@ -693,10 +603,6 @@ public class JParallelTest {
 		assertEquals(0, results.size());
 	}
 
-	/**
-	 * Test method for
-	 * {@link com.github.ansell.concurrent.jparallel.JParallel#builder(java.util.concurrent.Callable)}.
-	 */
 	@Test
 	public final void testWaitAndInterruptDuringAddConsume() throws Exception {
 		CountDownLatch testLatch = new CountDownLatch(1);
@@ -728,10 +634,6 @@ public class JParallelTest {
 		assertEquals(0, results.size());
 	}
 
-	/**
-	 * Test method for
-	 * {@link com.github.ansell.concurrent.jparallel.JParallel#builder(java.util.concurrent.Callable)}.
-	 */
 	@Test
 	public final void testWaitAndInterruptAfterStart() throws Exception {
 		CountDownLatch testLatch = new CountDownLatch(1);
@@ -763,10 +665,6 @@ public class JParallelTest {
 		assertEquals(0, results.size());
 	}
 
-	/**
-	 * Test method for
-	 * {@link com.github.ansell.concurrent.jparallel.JParallel#builder(java.util.concurrent.Callable)}.
-	 */
 	@Ignore("Not possible to reliably interrupt the thread, due to the opaque implementation of the internal ExecutorService which is free to substitute threads as necessary")
 	@Test
 	public final void testWaitAndInterruptAfterAdd() throws Exception {
@@ -805,10 +703,6 @@ public class JParallelTest {
 		assertEquals(0, results.size());
 	}
 
-	/**
-	 * Test method for
-	 * {@link com.github.ansell.concurrent.jparallel.JParallel#builder(java.util.concurrent.Callable)}.
-	 */
 	@Test
 	public final void testInputQueueFailedToAcceptTimeout() throws Exception {
 		CountDownLatch testLatch = new CountDownLatch(1);

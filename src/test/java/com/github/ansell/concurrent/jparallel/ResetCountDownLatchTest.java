@@ -16,6 +16,7 @@ package com.github.ansell.concurrent.jparallel;
 
 import static org.junit.Assert.*;
 
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 import org.junit.Test;
@@ -50,6 +51,74 @@ public class ResetCountDownLatchTest {
 		Thread testNormalThread = new Thread(() -> {
 			try {
 				testLatch.await();
+				threadNormalSuccess.set(true);
+			} catch (InterruptedException e) {
+				e.printStackTrace();
+				Thread.currentThread().interrupt();
+				throw new RuntimeException(e);
+			}
+		});
+		testNormalThread.start();
+
+		Thread.sleep(100);
+		assertEquals(2L, testLatch.getCount());
+		assertFalse(threadInterruptSuccess.get());
+		assertFalse(threadInterruptFail.get());
+		assertFalse(threadNormalSuccess.get());
+
+		// Verify that counting down once doesn't cause either thread to
+		// complete
+		testLatch.countDown();
+		Thread.sleep(100);
+		assertEquals(1L, testLatch.getCount());
+		assertFalse(threadInterruptSuccess.get());
+		assertFalse(threadInterruptFail.get());
+		assertFalse(threadNormalSuccess.get());
+
+		// Verify that interrupting the thread doesn't change
+		// ResetCountDownLatch
+		testInterruptThread.interrupt();
+		Thread.sleep(100);
+		assertEquals(1L, testLatch.getCount());
+		assertTrue(threadInterruptSuccess.get());
+		assertFalse(threadInterruptFail.get());
+		assertFalse(threadNormalSuccess.get());
+
+		// Verify that the thread now makes it past the call to await without
+		// throwing an exception
+		testLatch.countDown();
+		Thread.sleep(100);
+		assertEquals(0L, testLatch.getCount());
+		assertTrue(threadInterruptSuccess.get());
+		assertFalse(threadInterruptFail.get());
+		assertTrue(threadNormalSuccess.get());
+
+		assertTrue("The toString representation should be non-empty", testLatch.toString().length() > 0);
+	}
+
+	@Test
+	public final void testNoResetAwaitWithTimeout() throws Exception {
+		AtomicBoolean threadInterruptSuccess = new AtomicBoolean(false);
+		AtomicBoolean threadInterruptFail = new AtomicBoolean(false);
+		AtomicBoolean threadNormalSuccess = new AtomicBoolean(false);
+		ResetCountDownLatch testLatch = new ResetCountDownLatch(2);
+
+		Thread testInterruptThread = new Thread(() -> {
+			try {
+				testLatch.await(1, TimeUnit.MINUTES);
+				threadInterruptFail.set(true);
+			} catch (InterruptedException e) {
+				threadInterruptSuccess.set(true);
+				e.printStackTrace();
+				Thread.currentThread().interrupt();
+				throw new RuntimeException(e);
+			}
+		});
+		testInterruptThread.start();
+
+		Thread testNormalThread = new Thread(() -> {
+			try {
+				testLatch.await(1, TimeUnit.MINUTES);
 				threadNormalSuccess.set(true);
 			} catch (InterruptedException e) {
 				e.printStackTrace();

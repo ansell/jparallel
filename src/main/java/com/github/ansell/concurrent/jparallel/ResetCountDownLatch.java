@@ -55,11 +55,15 @@ public final class ResetCountDownLatch extends CountDownLatch {
 	 */
 	public void reset() {
 		CountDownLatch retiredLatch = delegate.getAndSet(new CountDownLatch(resetValue));
-		// Count down to get the retired latch back to zero and release any
-		// threads waiting on it
-		long requiredCountDowns = retiredLatch.getCount();
-		for (int count = 0; count < requiredCountDowns; count++) {
-			retiredLatch.countDown();
+		if (retiredLatch != null) {
+			// Count down to get the retired latch back to zero and release any
+			// threads waiting on it
+			// Multiple calls to countDown after it reaches 0 are safe, making
+			// it
+			// unnecessary to synchronise here
+			for (int count = 0; count < resetValue; count++) {
+				retiredLatch.countDown();
+			}
 		}
 	}
 

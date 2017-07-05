@@ -5,6 +5,9 @@ Parallel utilities for Java-8
 
 # Changelog
 
+## 2017-07-05
+* Add ResetCountDownLatch
+
 ## 2016-12-21
 * Release 0.0.1
 * Initial version including a multi-producer/multi-consumer queue based fluent builder pattern

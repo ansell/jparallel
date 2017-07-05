@@ -111,7 +111,9 @@ public class JParallelTest {
 				.inputProcessors(1).outputConsumers(2).inputBuffer(0).outputBuffer(0)
 				.queueCloseRetries(10, 10L, TimeUnit.SECONDS).terminationWaitTime(5, TimeUnit.SECONDS)
 				.uncaughtExceptionHandler((t, e) -> {
-				}).threadNameFormat("custom-thread-name-%d").start();) {
+				}).threadNameFormat("custom-thread-name-%d").inputQueueFailureFunction(i -> {
+				}).outputQueueFailureFunction(s -> {
+				}).start();) {
 			for (int i = 0; i < count; i++) {
 				setup.add(i);
 			}

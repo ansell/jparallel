@@ -143,7 +143,7 @@ public class JParallelTest {
 		Consumer<String> outputFunction = results::add;
 
 		try (JParallel<Integer, String> setup = JParallel.forFunctions(processFunction, outputFunction)
-				.queueWaitTime(0, TimeUnit.MILLISECONDS).inputBuffer(1).start();) {
+				.inputQueueWaitTime(0, TimeUnit.MILLISECONDS).inputBuffer(1).start();) {
 			for (int i = 0; i < count; i++) {
 				setup.add(i);
 			}
@@ -167,7 +167,7 @@ public class JParallelTest {
 		Consumer<String> outputFunction = results::add;
 
 		try (JParallel<Integer, String> setup = JParallel.forFunctions(processFunction, outputFunction)
-				.queueWaitTime(0, TimeUnit.MILLISECONDS).inputBuffer(0).start();) {
+				.inputQueueWaitTime(0, TimeUnit.MILLISECONDS).inputBuffer(0).start();) {
 			for (int i = 0; i < count; i++) {
 				setup.add(i);
 			}
@@ -191,7 +191,7 @@ public class JParallelTest {
 		Consumer<String> outputFunction = results::add;
 
 		try (JParallel<Integer, String> setup = JParallel.forFunctions(processFunction, outputFunction)
-				.queueWaitTime(0, TimeUnit.MILLISECONDS).outputBuffer(1).start();) {
+				.inputQueueWaitTime(0, TimeUnit.MILLISECONDS).outputBuffer(1).start();) {
 			for (int i = 0; i < count; i++) {
 				setup.add(i);
 			}
@@ -215,7 +215,7 @@ public class JParallelTest {
 		Consumer<String> outputFunction = results::add;
 
 		try (JParallel<Integer, String> setup = JParallel.forFunctions(processFunction, outputFunction)
-				.queueWaitTime(0, TimeUnit.MILLISECONDS).outputBuffer(0).start();) {
+				.inputQueueWaitTime(0, TimeUnit.MILLISECONDS).outputBuffer(0).start();) {
 			for (int i = 0; i < count; i++) {
 				setup.add(i);
 			}
@@ -297,7 +297,7 @@ public class JParallelTest {
 		Consumer<String> outputFunction = results::add;
 
 		try (JParallel<Integer, String> setup = JParallel.forFunctions(processFunction, outputFunction)
-				.queueWaitTime(10, TimeUnit.MILLISECONDS).start();) {
+				.inputQueueWaitTime(10, TimeUnit.MILLISECONDS).start();) {
 			for (int i = 0; i < count; i++) {
 				setup.add(i);
 			}
@@ -319,7 +319,7 @@ public class JParallelTest {
 		};
 
 		try (JParallel<Integer, String> setup = JParallel.forFunctions(processFunction, outputFunction)
-				.queueWaitTime(10, TimeUnit.MILLISECONDS).start();) {
+				.inputQueueWaitTime(10, TimeUnit.MILLISECONDS).start();) {
 			for (int i = 0; i < count; i++) {
 				setup.add(i);
 			}
@@ -555,7 +555,7 @@ public class JParallelTest {
 		};
 
 		thrown.expect(IllegalArgumentException.class);
-		JParallel.forFunctions(processFunction, outputFunction).queueWaitTime(-1, TimeUnit.MILLISECONDS);
+		JParallel.forFunctions(processFunction, outputFunction).inputQueueWaitTime(-1, TimeUnit.MILLISECONDS);
 	}
 
 	/**
@@ -572,7 +572,7 @@ public class JParallelTest {
 		};
 
 		thrown.expect(NullPointerException.class);
-		JParallel.forFunctions(processFunction, outputFunction).queueWaitTime(0, null);
+		JParallel.forFunctions(processFunction, outputFunction).inputQueueWaitTime(0, null);
 	}
 
 	/**
@@ -829,7 +829,7 @@ public class JParallelTest {
 
 		Thread testThread = new Thread(() -> {
 			try (JParallel<Integer, String> setup = JParallel.forFunctions(processFunction, outputFunction)
-					.queueWaitTime(1, TimeUnit.NANOSECONDS).inputBuffer(1).inputProcessors(1).outputBuffer(1)
+					.inputQueueWaitTime(1, TimeUnit.NANOSECONDS).inputBuffer(1).inputProcessors(1).outputBuffer(1)
 					.outputConsumers(1).start();) {
 				for (int i = 0; i < count; i++) {
 					setup.add(i);

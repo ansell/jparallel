@@ -87,10 +87,15 @@ public final class JParallel<P, C> implements AutoCloseable {
 		logger.error("Uncaught exception occurred in thread: " + nextThread.getName(), nextException);
 	};
 
-	private long queueWaitTime = 10;
-	private TimeUnit queueWaitUnit = TimeUnit.SECONDS;
+	private long inputQueueWaitTime = 10;
+	private TimeUnit inputQueueWaitUnit = TimeUnit.SECONDS;
+
+	private long outputQueueWaitTime = 20;
+	private TimeUnit outputQueueWaitUnit = TimeUnit.SECONDS;
+	
 	private long terminationWaitTime = 30;
 	private TimeUnit terminationWaitUnit = TimeUnit.SECONDS;
+	
 	private int queueCloseRetries = 1;
 	private long queueCloseRetrySleep = 5;
 	private TimeUnit queueCloseRetrySleepTimeUnit = TimeUnit.SECONDS;
@@ -284,25 +289,49 @@ public final class JParallel<P, C> implements AutoCloseable {
 	}
 
 	/**
-	 * The amount of time to wait for space in a queue, during
+	 * The amount of time to wait for space in the input queue, during
 	 * {@link #add(Object)} before failing.
 	 * 
-	 * @param queueWaitTime
+	 * @param inputQueueWaitTime
 	 *            The time to wait
-	 * @param queueWaitUnit
+	 * @param inputQueueWaitUnit
 	 *            The {@link TimeUnit} that specifies the units for the wait
 	 *            time
 	 * @return This object, for fluent programming
 	 */
-	public final JParallel<P, C> queueWaitTime(final long queueWaitTime, final TimeUnit queueWaitUnit) {
+	public final JParallel<P, C> inputQueueWaitTime(final long inputQueueWaitTime, final TimeUnit inputQueueWaitUnit) {
 		checkStateBeforeMutator();
 
-		if (queueWaitTime < 0) {
-			throw new IllegalArgumentException("Queue wait time must be non-negative.");
+		if (inputQueueWaitTime < 0) {
+			throw new IllegalArgumentException("Input queue wait time must be non-negative.");
 		}
 
-		this.queueWaitTime = queueWaitTime;
-		this.queueWaitUnit = Objects.requireNonNull(queueWaitUnit, "Queue wait time unit must not be null");
+		this.inputQueueWaitTime = inputQueueWaitTime;
+		this.inputQueueWaitUnit = Objects.requireNonNull(inputQueueWaitUnit, "Input queue wait time unit must not be null");
+		return this;
+	}
+
+	/**
+	 * The amount of time to wait for space in the output queue, during the
+	 * processing phase before failing.
+	 * 
+	 * @param inputQueueWaitTime
+	 *            The time to wait
+	 * @param inputQueueWaitUnit
+	 *            The {@link TimeUnit} that specifies the units for the wait
+	 *            time
+	 * @return This object, for fluent programming
+	 */
+	public final JParallel<P, C> outputQueueWaitTime(final long outputQueueWaitTime,
+			final TimeUnit outputQueueWaitUnit) {
+		checkStateBeforeMutator();
+
+		if (outputQueueWaitTime < 0) {
+			throw new IllegalArgumentException("Output queue wait time must be non-negative.");
+		}
+
+		this.outputQueueWaitTime = outputQueueWaitTime;
+		this.outputQueueWaitUnit = Objects.requireNonNull(outputQueueWaitUnit, "Output queue wait time unit must not be null");
 		return this;
 	}
 
@@ -453,11 +482,11 @@ public final class JParallel<P, C> implements AutoCloseable {
 				throwShutdownException();
 			}
 
-			if (this.queueWaitTime > 0) {
-				boolean offer = this.inputQueue.offer(toProcess, this.queueWaitTime, this.queueWaitUnit);
+			if (this.inputQueueWaitTime > 0) {
+				boolean offer = this.inputQueue.offer(toProcess, this.inputQueueWaitTime, this.inputQueueWaitUnit);
 				if (!offer) {
 					this.logger.error("Input queue failed to accept offered item within time allowed: {} {}",
-							this.queueWaitTime, this.queueWaitUnit);
+							this.inputQueueWaitTime, this.inputQueueWaitUnit);
 				}
 			} else if (this.inputQueueSize > 0) {
 				this.inputQueue.put(toProcess);
@@ -589,7 +618,7 @@ public final class JParallel<P, C> implements AutoCloseable {
 								throwShutdownException();
 								break;
 							}
-							P take = this.inputQueue.poll(this.queueWaitTime, this.queueWaitUnit);
+							P take = this.inputQueue.poll(this.inputQueueWaitTime, this.inputQueueWaitUnit);
 							if (take == null) {
 								// Continue back to the start of the loop,
 								// checking the interrupt status before looking
@@ -606,13 +635,13 @@ public final class JParallel<P, C> implements AutoCloseable {
 							// Null return from functionCode indicates that we
 							// don't consume the result
 							if (toConsume != null) {
-								if (this.queueWaitTime > 0) {
-									boolean offer = this.outputQueue.offer(toConsume, this.queueWaitTime,
-											this.queueWaitUnit);
+								if (this.outputQueueWaitTime > 0) {
+									boolean offer = this.outputQueue.offer(toConsume, this.outputQueueWaitTime,
+											this.outputQueueWaitUnit);
 									if (!offer) {
 										this.logger.error(
 												"Output queue failed to accept offered item within time allowed: {} {}",
-												this.queueWaitTime, this.queueWaitUnit);
+												this.outputQueueWaitTime, this.outputQueueWaitUnit);
 									}
 								} else if (this.outputQueueSize > 0) {
 									this.outputQueue.put(toConsume);
@@ -643,7 +672,7 @@ public final class JParallel<P, C> implements AutoCloseable {
 								break;
 							}
 
-							C toConsume = this.outputQueue.poll(this.queueWaitTime, this.queueWaitUnit);
+							C toConsume = this.outputQueue.poll(this.outputQueueWaitTime, this.outputQueueWaitUnit);
 
 							if (toConsume == null) {
 								// Continue back to the start of the loop,

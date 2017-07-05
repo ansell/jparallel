@@ -439,7 +439,7 @@ public final class JParallel<P, C> implements AutoCloseable {
 
 	/**
 	 * Constructs the internal {@link Queue} and {@link ExecutorService} objects
-	 * and makes them reason to accept objects using the {@link #add(Object)}
+	 * and makes them able to accept objects using the {@link #add(Object)}
 	 * method.
 	 * 
 	 * @return This object, for fluent programming
@@ -450,8 +450,8 @@ public final class JParallel<P, C> implements AutoCloseable {
 		}
 		if (this.started.compareAndSet(false, true)) {
 			try {
-				if (this.logger.isInfoEnabled()) {
-					this.logger.info("Setup called on : {}", this.toString());
+				if (this.logger.isDebugEnabled()) {
+					this.logger.debug("Start called on : {}", this.toString());
 				}
 				if (this.inputQueueSize > 0) {
 					this.inputQueue = new ArrayBlockingQueue<>(this.inputQueueSize);
@@ -481,7 +481,7 @@ public final class JParallel<P, C> implements AutoCloseable {
 	}
 
 	/**
-	 * Checks that this object has both not been closed or started to enforce
+	 * Checks that this object has both, not been closed, or started, to enforce
 	 * the immutable pattern after starting/closing.
 	 * 
 	 * @throws IllegalStateException

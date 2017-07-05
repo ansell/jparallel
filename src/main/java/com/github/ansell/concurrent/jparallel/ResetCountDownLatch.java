@@ -25,6 +25,10 @@ import java.util.concurrent.atomic.AtomicReference;
  * wherever CountDownLatch is required by an API, but delegates all calls to
  * another copy.
  * 
+ * Resetting the latch releases all threads waiting on the current latch, after
+ * atomically replacing the internal delegate with a fresh instance of
+ * CountDownLatch.
+ * 
  * @author Peter Ansell p_ansell@yahoo.com
  */
 public final class ResetCountDownLatch extends CountDownLatch {

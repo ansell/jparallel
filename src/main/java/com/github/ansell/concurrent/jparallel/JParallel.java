@@ -498,7 +498,11 @@ public final class JParallel<P, C> implements AutoCloseable {
 			} else if (this.inputQueueSize > 0) {
 				this.inputQueue.put(toProcess);
 			} else {
-				this.inputQueue.add(toProcess);
+				try {
+					this.inputQueue.add(toProcess);
+				} catch (IllegalStateException e) {
+					inputQueueFailureFunction.accept(toProcess);
+				}
 			}
 		} catch (InterruptedException e) {
 			Thread.currentThread().interrupt();

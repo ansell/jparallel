@@ -642,9 +642,11 @@ public class JParallelTest {
 		testThread.start();
 		Thread.sleep(1000);
 		testThread.interrupt();
-		testLatch.countDown();
-
+		Thread.sleep(1000);
+		// Verifies that without calling countDown, there are no results
+		// returned
 		assertEquals(0, results.size());
+		testLatch.countDown();
 	}
 
 	@Test
